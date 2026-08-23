@@ -1,59 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#121212"
-    android:weightSum="10">
+    android:background="#000000">
 
-    <!-- Pantallas DS (Relación de aspecto 4:3 centradas) -->
+    <!-- Pantallas DS Arriba (Apiladas una sobre otra) -->
     <LinearLayout
+        android:id="@+id/screens_container"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="6.2"
+        android:layout_height="320dp"
+        android:layout_alignParentTop="true"
         android:orientation="vertical"
-        android:gravity="center"
-        android:padding="6dp">
+        android:padding="4dp">
 
         <TextView
             android:id="@+id/screen_top"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginBottom="4dp"
-            android:background="#000000"
+            android:layout_marginBottom="2dp"
+            android:background="#050505"
             android:gravity="center"
-            android:text="[ Pantalla Superior DS ]"
+            android:text="[ Pantalla Superior ]"
             android:textColor="#00FF66"
-            android:textSize="15sp" />
+            android:textSize="14sp" />
 
         <TextView
             android:id="@+id/screen_bottom"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="#1E1E1E"
+            android:background="#0A0A0A"
             android:gravity="center"
-            android:text="[ Pantalla Táctil DS ]"
+            android:text="[ Pantalla Táctil ]"
             android:textColor="#00E5FF"
-            android:textSize="15sp" />
+            android:textSize="14sp" />
     </LinearLayout>
 
-    <!-- Zona Inferior de Controles -->
+    <!-- Zona de Controles Inferior -->
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="3.8"
-        android:paddingHorizontal="12dp"
-        android:paddingBottom="12dp">
+        android:layout_height="match_parent"
+        android:layout_below="@id/screens_container">
 
-        <!-- Cruceta D-Pad a la izquierda -->
+        <!-- Cruceta D-PAD (Esquina Inferior Izquierda) -->
         <RelativeLayout
             android:id="@+id/dpad_container"
-            android:layout_width="145dp"
-            android:layout_height="145dp"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
             android:layout_alignParentStart="true"
-            android:layout_centerVertical="true">
+            android:layout_alignParentBottom="true"
+            android:layout_marginStart="16dp"
+            android:layout_marginBottom="16dp">
 
             <ImageView
                 android:layout_width="match_parent"
@@ -63,40 +61,43 @@
 
             <View
                 android:id="@+id/btn_up"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true" />
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="54dp"
+                android:layout_marginTop="6dp" />
 
             <View
                 android:id="@+id/btn_down"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="54dp"
                 android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true" />
+                android:layout_marginBottom="6dp" />
 
             <View
                 android:id="@+id/btn_left"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_alignParentStart="true"
-                android:layout_centerVertical="true" />
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="6dp"
+                android:layout_marginTop="54dp" />
 
             <View
                 android:id="@+id/btn_right"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
                 android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true" />
+                android:layout_marginTop="54dp" />
         </RelativeLayout>
 
-        <!-- Botonera Padbuttons a la derecha -->
+        <!-- Botonera ABXY (Esquina Inferior Derecha) -->
         <RelativeLayout
             android:id="@+id/buttons_container"
-            android:layout_width="175dp"
-            android:layout_height="145dp"
+            android:layout_width="190dp"
+            android:layout_height="160dp"
             android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true">
+            android:layout_alignParentBottom="true"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp">
 
             <ImageView
                 android:layout_width="match_parent"
@@ -104,77 +105,63 @@
                 android:scaleType="fitCenter"
                 android:src="@drawable/padbuttons_0" />
 
-            <!-- Botones ABXY -->
-            <View
-                android:id="@+id/btn_a"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentStart="true"
-                android:layout_marginStart="8dp" />
-
-            <View
-                android:id="@+id/btn_b"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_alignParentTop="true"
-                android:layout_toEndOf="@id/btn_a"
-                android:layout_marginStart="2dp" />
-
             <View
                 android:id="@+id/btn_x"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_below="@id/btn_a"
-                android:layout_alignParentStart="true"
-                android:layout_marginStart="8dp" />
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_marginStart="18dp"
+                android:layout_marginTop="48dp" />
 
             <View
                 android:id="@+id/btn_y"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_below="@id/btn_b"
-                android:layout_toEndOf="@id/btn_x"
-                android:layout_marginStart="2dp" />
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_marginStart="18dp"
+                android:layout_marginTop="98dp" />
 
-            <!-- Gatillos L y R del skin -->
+            <View
+                android:id="@+id/btn_a"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_marginStart="68dp"
+                android:layout_marginTop="48dp" />
+
+            <View
+                android:id="@+id/btn_b"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_marginStart="68dp"
+                android:layout_marginTop="98dp" />
+
             <View
                 android:id="@+id/btn_l"
-                android:layout_width="45dp"
-                android:layout_height="25dp"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentEnd="true"
-                android:layout_marginEnd="15dp" />
+                android:layout_width="50dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="122dp"
+                android:layout_marginTop="12dp" />
 
             <View
                 android:id="@+id/btn_r"
-                android:layout_width="45dp"
-                android:layout_height="25dp"
-                android:layout_below="@id/btn_l"
-                android:layout_alignParentEnd="true"
-                android:layout_marginEnd="15dp"
-                android:layout_marginTop="2dp" />
+                android:layout_width="50dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="122dp"
+                android:layout_marginTop="45dp" />
 
-            <!-- Start y Select del skin -->
             <View
                 android:id="@+id/btn_start"
-                android:layout_width="45dp"
-                android:layout_height="20dp"
-                android:layout_below="@id/btn_r"
-                android:layout_alignParentEnd="true"
-                android:layout_marginEnd="15dp"
-                android:layout_marginTop="3dp" />
+                android:layout_width="50dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="122dp"
+                android:layout_marginTop="85dp" />
 
             <View
                 android:id="@+id/btn_select"
-                android:layout_width="45dp"
-                android:layout_height="20dp"
-                android:layout_below="@id/btn_start"
-                android:layout_alignParentEnd="true"
-                android:layout_marginEnd="15dp"
-                android:layout_marginTop="2dp" />
+                android:layout_width="50dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="122dp"
+                android:layout_marginTop="115dp" />
         </RelativeLayout>
 
     </RelativeLayout>
 
-</LinearLayout>
+</RelativeLayout>
