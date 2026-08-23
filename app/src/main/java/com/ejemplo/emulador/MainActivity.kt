@@ -1,6 +1,7 @@
 package com.ejemplo.emulador
 
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.net.Uri
 import android.opengl.GLSurfaceView
 import android.os.Bundle
@@ -16,7 +17,7 @@ class MainActivity : AppCompatActivity() {
 
     private var keyState: Int = 0x0FFF
     private val touchDigitizer = TouchDigitizer()
-    private val audioEngine = AudioEngine(44100)
+    private val audioEngine = AudioEngine(32828)
     private var gameLoop: GameLoop? = null
 
     companion object {
@@ -43,15 +44,24 @@ class MainActivity : AppCompatActivity() {
         uri?.let { cargarRom(it) }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Inicializar pasando la ruta de librerías nativas del sistema
         val nativeDir = applicationInfo.nativeLibraryDir
         NativeBridge.nativeInit(nativeDir)
 
+        bindViewsAndSurfaces()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        setContentView(R.layout.activity_main)
+        bindViewsAndSurfaces()
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun bindViewsAndSurfaces() {
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
 
@@ -63,13 +73,17 @@ class MainActivity : AppCompatActivity() {
         glScreenBottom.setRenderer(EmulatorRenderer(isTopScreen = false))
         glScreenBottom.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
-        gameLoop = GameLoop(
-            glTop = glScreenTop,
-            glBottom = glScreenBottom,
-            audioEngine = audioEngine,
-            getKeyMask = { keyState },
-            getTouchState = { touchDigitizer }
-        )
+        if (gameLoop == null) {
+            gameLoop = GameLoop(
+                glTop = glScreenTop,
+                glBottom = glScreenBottom,
+                audioEngine = audioEngine,
+                getKeyMask = { keyState },
+                getTouchState = { touchDigitizer }
+            )
+        } else {
+            gameLoop?.updateSurfaces(glScreenTop, glScreenBottom)
+        }
 
         glScreenTop.setOnClickListener {
             romPickerLauncher.launch(arrayOf("*/*"))
