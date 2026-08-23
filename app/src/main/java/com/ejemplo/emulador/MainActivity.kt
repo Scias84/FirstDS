@@ -48,7 +48,9 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        NativeBridge.nativeInit(filesDir.absolutePath)
+        // Inicializar pasando la ruta de librerías nativas del sistema
+        val nativeDir = applicationInfo.nativeLibraryDir
+        NativeBridge.nativeInit(nativeDir)
 
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
@@ -110,7 +112,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun cargarRom(uri: Uri) {
         try {
-            Toast.makeText(this, "Cargando cartucho...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Cargando cartucho NDS...", Toast.LENGTH_SHORT).show()
             val tempRom = File(cacheDir, "game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRom).use { output ->
