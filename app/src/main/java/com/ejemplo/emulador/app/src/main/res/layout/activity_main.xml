@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#121212"
+    android:weightSum="10">
+
+    <!-- Pantalla Superior -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3.5"
+        android:layout_margin="8dp"
+        android:background="#000000"
+        android:gravity="center"
+        android:text="[ Pantalla Superior DS ]"
+        android:textColor="#00FF66"
+        android:textSize="18sp" />
+
+    <!-- Pantalla Inferior (Táctil) -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3.5"
+        android:layout_margin="8dp"
+        android:background="#1E1E1E"
+        android:gravity="center"
+        android:text="[ Pantalla Táctil DS ]"
+        android:textColor="#00E5FF"
+        android:textSize="18sp" />
+
+    <!-- Panel de Botones Virtuales -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="16dp">
+
+        <Button
+            android:id="@+id/btn_b"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="24dp"
+            android:text="B"
+            android:backgroundTint="#D32F2F" />
+
+        <Button
+            android:id="@+id/btn_a"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="A"
+            android:backgroundTint="#388E3C" />
+    </LinearLayout>
+
+</LinearLayout>
