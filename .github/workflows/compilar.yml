@@ -25,17 +25,13 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653" "cmake;3.22.1"
 
-      - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v3
-
-      - name: Compilar APK Debug con motor nativo
+      - name: Generar Gradle Wrapper compatible
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew assembleDebug
-          else
-            gradle assembleDebug
-          fi
+          gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+
+      - name: Compilar APK con C++
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Subir APK generado
         uses: actions/upload-artifact@v4
