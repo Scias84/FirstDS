@@ -35,26 +35,28 @@
             android:textSize="16sp" />
     </LinearLayout>
 
-    <!-- Gatillos L y R -->
-    <Button
+    <!-- Gatillos L y R con Imágenes -->
+    <ImageButton
         android:id="@+id/btn_l"
         android:layout_width="70dp"
         android:layout_height="40dp"
         android:layout_below="@id/screens_container"
         android:layout_alignParentStart="true"
         android:layout_marginTop="8dp"
-        android:text="L"
-        android:backgroundTint="#424242" />
+        android:background="@android:color/transparent"
+        android:scaleType="fitCenter"
+        android:src="@drawable/btn_l" />
 
-    <Button
+    <ImageButton
         android:id="@+id/btn_r"
         android:layout_width="70dp"
         android:layout_height="40dp"
         android:layout_below="@id/screens_container"
         android:layout_alignParentEnd="true"
         android:layout_marginTop="8dp"
-        android:text="R"
-        android:backgroundTint="#424242" />
+        android:background="@android:color/transparent"
+        android:scaleType="fitCenter"
+        android:src="@drawable/btn_r" />
 
     <!-- Zona de Controles Inferiores -->
     <RelativeLayout
@@ -71,40 +73,48 @@
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true">
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_up"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentTop="true"
                 android:layout_centerHorizontal="true"
-                android:text="▲" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_up" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_down"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentBottom="true"
                 android:layout_centerHorizontal="true"
-                android:text="▼" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_down" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_left"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
-                android:text="◀" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_left" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_right"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:text="▶" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_right" />
         </RelativeLayout>
 
-        <!-- Start y Select al centro -->
+        <!-- Start y Select -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -112,22 +122,22 @@
             android:orientation="vertical"
             android:gravity="center">
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_select"
                 android:layout_width="65dp"
                 android:layout_height="35dp"
-                android:text="SEL"
-                android:textSize="10sp"
-                android:backgroundTint="#333333" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_select" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_start"
                 android:layout_width="65dp"
                 android:layout_height="35dp"
                 android:layout_marginTop="8dp"
-                android:text="STA"
-                android:textSize="10sp"
-                android:backgroundTint="#333333" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_start" />
         </LinearLayout>
 
         <!-- Botones de Acción X, Y, A, B -->
@@ -138,41 +148,45 @@
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true">
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_x"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentTop="true"
                 android:layout_centerHorizontal="true"
-                android:text="X"
-                android:backgroundTint="#1976D2" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_x" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_b"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentBottom="true"
                 android:layout_centerHorizontal="true"
-                android:text="B"
-                android:backgroundTint="#D32F2F" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_b" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_y"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
-                android:text="Y"
-                android:backgroundTint="#FBC02D" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_y" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btn_a"
                 android:layout_width="42dp"
                 android:layout_height="42dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
-                android:text="A"
-                android:backgroundTint="#388E3C" />
+                android:background="@android:color/transparent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/btn_a" />
         </RelativeLayout>
 
     </RelativeLayout>
