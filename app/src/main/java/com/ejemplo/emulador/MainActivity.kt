@@ -1,15 +1,19 @@
 package com.ejemplo.emulador
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.view.MotionEvent
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import java.io.InputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,7 +25,7 @@ class MainActivity : AppCompatActivity() {
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
-                parseNdsHeader(uri)
+                parseFullNdsHeader(uri)
             }
         }
     }
@@ -33,11 +37,12 @@ class MainActivity : AppCompatActivity() {
         screenTop = findViewById(R.id.screen_top)
         screenBottom = findViewById(R.id.screen_bottom)
 
-        // Tocar pantalla superior para abrir ROMs (.nds)
+        // Tocar pantalla superior para cargar ROMs
         screenTop.setOnClickListener {
             openRomSelector()
         }
 
+        setupStylusTouchSystem()
         setupControllerButtons()
     }
 
@@ -49,7 +54,33 @@ class MainActivity : AppCompatActivity() {
         filePickerLauncher.launch(intent)
     }
 
-    private fun parseNdsHeader(uri: Uri) {
+    // Mapeador de coordenadas de la pantalla táctil DS (256 x 192)
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupStylusTouchSystem() {
+        screenBottom.setOnTouchListener { view, event ->
+            val viewWidth = view.width.toFloat()
+            val viewHeight = view.height.toFloat()
+
+            if (viewWidth > 0 && viewHeight > 0) {
+                // Normalización de coordenadas al hardware de Nintendo DS
+                val dsX = ((event.x / viewWidth) * 256).toInt().coerceIn(0, 255)
+                val dsY = ((event.y / viewHeight) * 192).toInt().coerceIn(0, 191)
+
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                        screenBottom.text = "[ Stylus Táctil ]\nPresionado en DS: X = $dsX | Y = $dsY\n(Estado: Touch Activo)"
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        screenBottom.text = "[ Stylus Táctil ]\nÚltima posición: X = $dsX | Y = $dsY\n(Estado: Reposo)"
+                    }
+                }
+            }
+            true
+        }
+    }
+
+    // Lectura de los 512 bytes de la cabecera NDS y localización de ejecutables
+    private fun parseFullNdsHeader(uri: Uri) {
         try {
             var fileName = "juego.nds"
             contentResolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -60,21 +91,42 @@ class MainActivity : AppCompatActivity() {
             }
 
             val inputStream: InputStream? = contentResolver.openInputStream(uri)
-            val headerBuffer = ByteArray(16)
+            val headerBuffer = ByteArray(512)
             inputStream?.use { stream ->
                 stream.read(headerBuffer)
             }
 
+            val byteBuffer = ByteBuffer.wrap(headerBuffer).order(ByteOrder.LITTLE_ENDIAN)
+
+            // Título e ID
             val gameTitle = String(headerBuffer, 0, 12, Charsets.US_ASCII).trim { it <= ' ' }
             val gameCode = String(headerBuffer, 12, 4, Charsets.US_ASCII).trim { it <= ' ' }
 
-            screenTop.text = "Título: $gameTitle\nArchivo: $fileName"
-            screenBottom.text = "ID del Cartucho: $gameCode\n(ROM Enlazada y Lista)"
-            
-            Toast.makeText(this, "¡ROM cargada con éxito!", Toast.LENGTH_SHORT).show()
+            // Datos de ejecución ARM9 (Procesador Principal)
+            val arm9RomOffset = byteBuffer.getInt(0x020)
+            val arm9EntryAddress = byteBuffer.getInt(0x024)
+            val arm9RamAddress = byteBuffer.getInt(0x028)
+            val arm9Size = byteBuffer.getInt(0x02C)
+
+            // Datos de ejecución ARM7 (Sub-procesador de Audio/E/S)
+            val arm7RomOffset = byteBuffer.getInt(0x030)
+            val arm7EntryAddress = byteBuffer.getInt(0x034)
+            val arm7RamAddress = byteBuffer.getInt(0x038)
+            val arm7Size = byteBuffer.getInt(0x03C)
+
+            screenTop.text = """
+                Título: $gameTitle [$gameCode]
+                Archivo: $fileName
+                ─────────────────────
+                ARM9 RAM Target: 0x${Integer.toHexString(arm9RamAddress).uppercase()} (Size: ${arm9Size / 1024} KB)
+                ARM7 RAM Target: 0x${Integer.toHexString(arm7RamAddress).uppercase()} (Size: ${arm7Size / 1024} KB)
+            """.trimIndent()
+
+            screenBottom.text = "[ Pantalla Táctil ]\nArrastra el dedo aquí para probar el Stylus DS."
+            Toast.makeText(this, "Estructura binaria mapeada", Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
-            Toast.makeText(this, "Error al leer la ROM: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
