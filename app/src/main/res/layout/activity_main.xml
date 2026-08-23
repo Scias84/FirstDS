@@ -5,7 +5,7 @@
     android:background="#121212"
     android:padding="8dp">
 
-    <!-- Pantallas de la Consola -->
+    <!-- Contenedor de Pantallas Superior e Inferior -->
     <LinearLayout
         android:id="@+id/screens_container"
         android:layout_width="match_parent"
@@ -13,6 +13,7 @@
         android:orientation="vertical"
         android:layout_alignParentTop="true">
 
+        <!-- Pantalla Superior -->
         <TextView
             android:id="@+id/screen_top"
             android:layout_width="match_parent"
@@ -24,6 +25,7 @@
             android:textColor="#00FF66"
             android:textSize="16sp" />
 
+        <!-- Pantalla Inferior (Táctil) -->
         <TextView
             android:id="@+id/screen_bottom"
             android:layout_width="match_parent"
@@ -35,86 +37,59 @@
             android:textSize="16sp" />
     </LinearLayout>
 
-    <!-- Gatillos L y R con Imágenes -->
-    <ImageButton
-        android:id="@+id/btn_l"
-        android:layout_width="70dp"
-        android:layout_height="40dp"
-        android:layout_below="@id/screens_container"
-        android:layout_alignParentStart="true"
-        android:layout_marginTop="8dp"
-        android:background="@android:color/transparent"
-        android:scaleType="fitCenter"
-        android:src="@drawable/btn_l" />
-
-    <ImageButton
-        android:id="@+id/btn_r"
-        android:layout_width="70dp"
-        android:layout_height="40dp"
-        android:layout_below="@id/screens_container"
-        android:layout_alignParentEnd="true"
-        android:layout_marginTop="8dp"
-        android:background="@android:color/transparent"
-        android:scaleType="fitCenter"
-        android:src="@drawable/btn_r" />
-
-    <!-- Zona de Controles Inferiores -->
+    <!-- Zona Inferior de Controles con Skins -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/btn_l"
-        android:layout_marginTop="8dp">
+        android:layout_below="@id/screens_container"
+        android:layout_marginTop="10dp">
 
-        <!-- Cruceta (D-Pad) -->
+        <!-- LADO IZQUIERDO: CRUCETA (D-PAD) -->
         <RelativeLayout
-            android:id="@+id/dpad"
-            android:layout_width="130dp"
-            android:layout_height="130dp"
+            android:id="@+id/dpad_container"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
             android:layout_alignParentStart="true"
             android:layout_centerVertical="true">
 
-            <ImageButton
+            <!-- Imagen de la cruceta -->
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/dpad_0" />
+
+            <!-- Zonas táctiles transparentes -->
+            <View
                 android:id="@+id/btn_up"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_up" />
+                android:layout_centerHorizontal="true" />
 
-            <ImageButton
+            <View
                 android:id="@+id/btn_down"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_down" />
+                android:layout_centerHorizontal="true" />
 
-            <ImageButton
+            <View
                 android:id="@+id/btn_left"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_left" />
+                android:layout_centerVertical="true" />
 
-            <ImageButton
+            <View
                 android:id="@+id/btn_right"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_right" />
+                android:layout_centerVertical="true" />
         </RelativeLayout>
 
-        <!-- Start y Select -->
+        <!-- CENTRO: SELECT Y START -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -122,71 +97,67 @@
             android:orientation="vertical"
             android:gravity="center">
 
-            <ImageButton
+            <Button
                 android:id="@+id/btn_select"
                 android:layout_width="65dp"
-                android:layout_height="35dp"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_select" />
+                android:layout_height="32dp"
+                android:text="SELECT"
+                android:textSize="9sp"
+                android:backgroundTint="#333333" />
 
-            <ImageButton
+            <Button
                 android:id="@+id/btn_start"
                 android:layout_width="65dp"
-                android:layout_height="35dp"
-                android:layout_marginTop="8dp"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_start" />
+                android:layout_height="32dp"
+                android:layout_marginTop="6dp"
+                android:text="START"
+                android:textSize="9sp"
+                android:backgroundTint="#333333" />
         </LinearLayout>
 
-        <!-- Botones de Acción X, Y, A, B -->
+        <!-- LADO DERECHO: BOTONERA (X, Y, B, A) -->
         <RelativeLayout
-            android:id="@+id/action_buttons"
-            android:layout_width="130dp"
-            android:layout_height="130dp"
+            android:id="@+id/buttons_container"
+            android:layout_width="145dp"
+            android:layout_height="145dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true">
 
-            <ImageButton
+            <!-- Imagen del grupo de botones -->
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="fitCenter"
+                android:src="@drawable/padbuttons_0" />
+
+            <!-- Zonas táctiles transparentes -->
+            <View
                 android:id="@+id/btn_x"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentTop="true"
-                android:layout_centerHorizontal="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_x" />
+                android:layout_centerHorizontal="true" />
 
-            <ImageButton
+            <View
                 android:id="@+id/btn_b"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentBottom="true"
-                android:layout_centerHorizontal="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_b" />
+                android:layout_centerHorizontal="true" />
 
-            <ImageButton
+            <View
                 android:id="@+id/btn_y"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentStart="true"
-                android:layout_centerVertical="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_y" />
+                android:layout_centerVertical="true" />
 
-            <ImageButton
+            <View
                 android:id="@+id/btn_a"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
                 android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:background="@android:color/transparent"
-                android:scaleType="fitCenter"
-                android:src="@drawable/btn_a" />
+                android:layout_centerVertical="true" />
         </RelativeLayout>
 
     </RelativeLayout>
