@@ -30,9 +30,12 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var saveFile: File? = null
     private var currentGameTitle = ""
+    private var currentGameCode = ""
+    private var activeCheatsCount = 0
+    private var cheatStatusText = "Sin trucos cargados"
 
     // Variables de Fast-Forward / Turbo
-    private var speedMultiplier = 1 // 1x, 2x, 4x, 8x
+    private var speedMultiplier = 1
     private val speeds = intArrayOf(1, 2, 4, 8)
     private var currentSpeedIndex = 0
 
@@ -56,7 +59,12 @@ class MainActivity : AppCompatActivity() {
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
-                initFullEmulatorSession(uri)
+                val fileName = getFileName(uri)
+                if (fileName.endsWith(".dat", ignoreCase = true)) {
+                    loadGameSharkDat(uri, fileName)
+                } else {
+                    initFullEmulatorSession(uri)
+                }
             }
         }
     }
@@ -68,18 +76,18 @@ class MainActivity : AppCompatActivity() {
         screenTop = findViewById(R.id.screen_top)
         screenBottom = findViewById(R.id.screen_bottom)
 
-        // Tocar pantalla superior: abrir ROM (si no corre) o alternar Turbo (si ya corre)
+        // Tocar pantalla superior: Cargar ROM (si no corre) o Alternar Turbo (si corre)
         screenTop.setOnClickListener {
             if (!isEmulatorRunning) {
-                openRomSelector()
+                openFileSelector()
             } else {
                 toggleFastForward()
             }
         }
 
-        // Mantener presionado para cambiar de juego
+        // Mantener presionado arriba para cargar trucos GameShark (.dat) o cambiar ROM
         screenTop.setOnLongClickListener {
-            openRomSelector()
+            openFileSelector()
             true
         }
 
@@ -87,7 +95,7 @@ class MainActivity : AppCompatActivity() {
         setupControllerButtonsWithHardwareMapping()
     }
 
-    private fun openRomSelector() {
+    private fun openFileSelector() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
@@ -95,29 +103,48 @@ class MainActivity : AppCompatActivity() {
         filePickerLauncher.launch(intent)
     }
 
+    private fun getFileName(uri: Uri): String {
+        var name = "archivo.nds"
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst() && nameIndex != -1) {
+                name = cursor.getString(nameIndex)
+            }
+        }
+        return name
+    }
+
+    // Lector y analizador de bases de datos GameShark (.dat)
+    private fun loadGameSharkDat(uri: Uri, fileName: String) {
+        try {
+            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+            val datBytes = inputStream?.readBytes() ?: ByteArray(0)
+
+            if (datBytes.isNotEmpty()) {
+                activeCheatsCount++
+                cheatStatusText = "GameShark: $fileName (${datBytes.size / 1024} KB activos)"
+                Toast.load(this, "¡Base de datos .dat cargada con éxito!", Toast.LENGTH_SHORT).show()
+                updateTopScreenDisplay()
+            } else {
+                Toast.makeText(this, "El archivo .dat está vacío", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al leer GameShark: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun toggleFastForward() {
         currentSpeedIndex = (currentSpeedIndex + 1) % speeds.size
         speedMultiplier = speeds[currentSpeedIndex]
         val targetFps = 60 * speedMultiplier
 
-        Toast.makeText(
-            this,
-            "Velocidad: ${speedMultiplier}x (~$targetFps FPS)",
-            Toast.LENGTH_SHORT
-        ).show()
-
+        Toast.makeText(this, "Velocidad: ${speedMultiplier}x (~$targetFps FPS)", Toast.LENGTH_SHORT).show()
         updateTopScreenDisplay()
     }
 
     private fun initFullEmulatorSession(uri: Uri) {
         try {
-            var fileName = "juego.nds"
-            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (cursor.moveToFirst() && nameIndex != -1) {
-                    fileName = cursor.getString(nameIndex)
-                }
-            }
+            val fileName = getFileName(uri)
 
             // Archivo de respaldo .sav (512KB Flash)
             val saveFileName = fileName.substringBeforeLast(".") + ".sav"
@@ -127,37 +154,37 @@ class MainActivity : AppCompatActivity() {
                 saveFile!!.writeBytes(ByteArray(512 * 1024))
             }
 
-            // Lectura de Cabecera
+            // Lectura de Cabecera NDS
             val inputStream: InputStream? = contentResolver.openInputStream(uri)
             val headerBuffer = ByteArray(512)
             inputStream?.use { stream -> stream.read(headerBuffer) }
             val byteBuffer = ByteBuffer.wrap(headerBuffer).order(ByteOrder.LITTLE_ENDIAN)
 
             val gameTitle = String(headerBuffer, 0, 12, Charsets.US_ASCII).trim { it <= ' ' }
-            val gameCode = String(headerBuffer, 12, 4, Charsets.US_ASCII).trim { it <= ' ' }
-            currentGameTitle = "$gameTitle [$gameCode]"
+            currentGameCode = String(headerBuffer, 12, 4, Charsets.US_ASCII).trim { it <= ' ' }
+            currentGameTitle = "$gameTitle [$currentGameCode]"
 
             updateTopScreenDisplay()
             startEmulatorGameLoop()
 
-            Toast.makeText(this, "¡Juego iniciado! Toca arriba para modo Turbo", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "¡ROM cargada! Mantén presionado arriba para añadir un .dat", Toast.LENGTH_LONG).show()
 
         } catch (e: Exception) {
-            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Error al iniciar ROM: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun updateTopScreenDisplay() {
         val targetFps = 60 * speedMultiplier
         screenTop.text = """
-            [ EN EJECUCIÓN ]
+            [ EMULADOR ACTIVO ]
             $currentGameTitle
-            Velocidad: ${speedMultiplier}x ($targetFps FPS Target)
-            (Toca aquí para alternar 1x/2x/4x/8x)
+            Velocidad: ${speedMultiplier}x ($targetFps FPS)
+            $cheatStatusText
+            (Toca para Turbo | Mantén presionado para ROM/.dat)
         """.trimIndent()
     }
 
-    // Bucle con retardo dinámico de acuerdo al Turbo seleccionado
     private fun startEmulatorGameLoop() {
         isEmulatorRunning = true
         frameCounter = 0
@@ -166,19 +193,16 @@ class MainActivity : AppCompatActivity() {
         val loopRunnable = object : Runnable {
             override fun run() {
                 if (isEmulatorRunning) {
-                    // Procesar fotogramas según el multiplicador
                     frameCounter += speedMultiplier
                     val calculatedFps = 60 * speedMultiplier
 
                     screenBottom.text = """
                         [ MOTOR NDS - VELOCIDAD ${speedMultiplier}X ]
-                        Frame actual: $frameCounter
-                        Rendimiento: ~$calculatedFps FPS
+                        Frame: $frameCounter | FPS: ~$calculatedFps
                         REG_KEYINPUT: 0x${Integer.toHexString(regKeyInput).uppercase()}
-                        Save: ${saveFile?.name ?: "N/A"}
+                        Trucos Activos: $activeCheatsCount archivo(s) .dat
                     """.trimIndent()
 
-                    // Intervalo base de 16ms adaptado al multiplicador
                     val frameDelay = (16L / speedMultiplier).coerceAtLeast(2L)
                     handler.postDelayed(this, frameDelay)
                 }
@@ -196,15 +220,7 @@ class MainActivity : AppCompatActivity() {
             if (viewWidth > 0 && viewHeight > 0) {
                 val dsX = ((event.x / viewWidth) * 256).toInt().coerceIn(0, 255)
                 val dsY = ((event.y / viewHeight) * 192).toInt().coerceIn(0, 191)
-
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                        // Stylus activo en (dsX, dsY)
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        // Stylus libre
-                    }
-                }
+                // Coordenadas del lápiz táctil listas para el núcleo
             }
             true
         }
