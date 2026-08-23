@@ -10,10 +10,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        setupControllerButtons()
-    }
-
-    private fun setupControllerButtons() {
         val buttons = mapOf(
             R.id.btn_a to "A",
             R.id.btn_b to "B",
