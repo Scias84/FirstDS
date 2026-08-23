@@ -16,6 +16,8 @@ import java.io.FileOutputStream
 class MainActivity : AppCompatActivity() {
 
     private var keyState: Int = 0x0FFF
+    private val touchDigitizer = TouchDigitizer()
+    private var gameLoop: GameLoop? = null
 
     companion object {
         const val KEY_A = 1 shl 0
@@ -48,30 +50,40 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 1. Inicializar vistas OpenGL ES 2.0
+        // 1. Configuración de pantallas OpenGL ES 2.0
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
 
         glScreenTop.setEGLContextClientVersion(2)
         topRenderer = EmulatorRenderer(isTopScreen = true)
         glScreenTop.setRenderer(topRenderer)
+        glScreenTop.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
         glScreenBottom.setEGLContextClientVersion(2)
         bottomRenderer = EmulatorRenderer(isTopScreen = false)
         glScreenBottom.setRenderer(bottomRenderer)
+        glScreenBottom.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
-        // 2. Cargar motor
+        // 2. Crear instancia del bucle de juego
+        gameLoop = GameLoop(glScreenTop, glScreenBottom) { keyState }
+
+        // 3. Inicializar ruta de almacenamiento del motor
         try {
             val storagePath = filesDir.absolutePath
             DraSticBridge.initCore(storagePath)
         } catch (_: Throwable) { }
 
-        // Tocar la pantalla superior abre el selector de ROMs
+        // Tocar pantalla superior lanza selector de juegos
         glScreenTop.setOnClickListener {
             romPickerLauncher.launch(arrayOf("*/*"))
         }
 
-        // 3. Controles táctiles
+        // Tocar pantalla inferior detecta coordenadas táctiles
+        glScreenBottom.setOnTouchListener { v, event ->
+            touchDigitizer.handleTouchEvent(v, event)
+        }
+
+        // 4. Configuración de botones
         setupButton(R.id.btn_a, KEY_A)
         setupButton(R.id.btn_b, KEY_B)
         setupButton(R.id.btn_x, KEY_X)
@@ -91,17 +103,19 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         glScreenTop.onResume()
         glScreenBottom.onResume()
+        gameLoop?.start()
     }
 
     override fun onPause() {
         super.onPause()
+        gameLoop?.stop()
         glScreenTop.onPause()
         glScreenBottom.onPause()
     }
 
     private fun cargarRomSeleccionada(uri: Uri) {
         try {
-            Toast.makeText(this, "Cargando ROM...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Cargando archivo ROM...", Toast.LENGTH_SHORT).show()
             val tempRomFile = File(cacheDir, "game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRomFile).use { output ->
@@ -109,7 +123,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             DraSticBridge.loadRom(tempRomFile.absolutePath)
-            Toast.makeText(this, "ROM montada en memoria GPU", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "ROM montada correctamente", Toast.LENGTH_SHORT).show()
+            gameLoop?.start()
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -123,13 +138,11 @@ class MainActivity : AppCompatActivity() {
                 MotionEvent.ACTION_DOWN -> {
                     v.alpha = 0.5f
                     keyState = keyState and keyMask.inv()
-                    sendInput()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.alpha = 1.0f
                     keyState = keyState or keyMask
-                    sendInput()
                     true
                 }
                 else -> false
@@ -144,22 +157,14 @@ class MainActivity : AppCompatActivity() {
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     keyState = keyState and keyMask.inv()
-                    sendInput()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     keyState = keyState or keyMask
-                    sendInput()
                     true
                 }
                 else -> false
             }
         }
-    }
-
-    private fun sendInput() {
-        try {
-            DraSticBridge.updateFrame(keyState)
-        } catch (_: Throwable) { }
     }
 }
