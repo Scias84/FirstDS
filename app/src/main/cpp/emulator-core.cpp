@@ -14,15 +14,17 @@
 #define DS_WIDTH 256
 #define DS_HEIGHT 192
 #define BUFFER_SIZE (DS_WIDTH * DS_HEIGHT * 4)
-#define AUDIO_BUFFER_SIZE 8192
 
-// Búferes de video para OpenGL
+// Buffer circular de audio amplio para evitar cortes
+#define AUDIO_RING_SIZE 32768
+
 static uint32_t topScreenBuffer[DS_WIDTH * DS_HEIGHT];
 static uint32_t bottomScreenBuffer[DS_WIDTH * DS_HEIGHT];
 
-// Búfer de audio PCM
-static int16_t audioRingBuffer[AUDIO_BUFFER_SIZE];
-static size_t audioWritePos = 0;
+static int16_t audioFifo[AUDIO_RING_SIZE];
+static size_t audioReadIdx = 0;
+static size_t audioWriteIdx = 0;
+static pthread_mutex_t audioMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int currentKeyMask = 0x0FFF;
 static int touchCoordX = 0;
@@ -31,7 +33,7 @@ static bool touchIsActive = false;
 static bool isCoreLoaded = false;
 static bool isGameLoaded = false;
 
-static int currentPixelFormat = 1; // 1 = XRGB8888, 2 = RGB565, 0 = 0RGB1555
+static int currentPixelFormat = 1;
 static char systemDirectory[512] = {0};
 static void *persistedRomData = nullptr;
 static pthread_mutex_t coreMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -81,21 +83,19 @@ static fn_retro_set_input_state core_set_input_state = nullptr;
 
 static void *coreHandle = nullptr;
 
-// --- CONFIGURACIÓN DE PARÁMETROS LIBRETRO ---
 static bool cb_environment(unsigned cmd, void *data) {
     switch (cmd) {
-        case 10: // RETRO_ENVIRONMENT_SET_PIXEL_FORMAT
+        case 10:
             if (data) {
                 currentPixelFormat = *(const int*)data;
                 return true;
             }
             return false;
 
-        case 15: // RETRO_ENVIRONMENT_GET_VARIABLE
+        case 15:
             if (data) {
                 struct retro_variable *var = (struct retro_variable*)data;
                 if (var->key) {
-                    // 1. Arranque directo sin pedir archivos de BIOS externos
                     if (strcmp(var->key, "melonds_boot_directly") == 0 || strcmp(var->key, "melonds_boot_direct") == 0) {
                         var->value = "enabled";
                         return true;
@@ -108,12 +108,10 @@ static bool cb_environment(unsigned cmd, void *data) {
                         var->value = "FreeBIOS";
                         return true;
                     }
-                    // 2. Desactivar JIT para máxima compatibilidad y estabilidad en Android
                     if (strcmp(var->key, "melonds_jit") == 0) {
                         var->value = "disabled";
                         return true;
                     }
-                    // 3. Renderizador por software estable
                     if (strcmp(var->key, "melonds_threaded_renderer") == 0 || strcmp(var->key, "melonds_opengl") == 0) {
                         var->value = "disabled";
                         return true;
@@ -126,15 +124,15 @@ static bool cb_environment(unsigned cmd, void *data) {
             }
             return false;
 
-        case 9:  // RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY
-        case 31: // RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY
+        case 9:
+        case 31:
             if (data && systemDirectory[0] != '\0') {
                 *(const char**)data = systemDirectory;
                 return true;
             }
             return false;
 
-        case 3: // RETRO_ENVIRONMENT_GET_CAN_DUPE
+        case 3:
             if (data) {
                 *(bool*)data = true;
                 return true;
@@ -149,7 +147,7 @@ static bool cb_environment(unsigned cmd, void *data) {
 static void cb_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch) {
     if (!data || width == 0 || height == 0) return;
 
-    if (currentPixelFormat == 1) { // 32 bits (XRGB8888)
+    if (currentPixelFormat == 1) {
         const uint32_t *src = (const uint32_t *)data;
         size_t stride = pitch / sizeof(uint32_t);
 
@@ -172,7 +170,7 @@ static void cb_video_refresh(const void *data, unsigned width, unsigned height, 
                 bottomScreenBuffer[y * DS_WIDTH + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
             }
         }
-    } else { // 16 bits (RGB565 / 0RGB1555)
+    } else {
         const uint16_t *src = (const uint16_t *)data;
         size_t stride = pitch / sizeof(uint16_t);
 
@@ -199,18 +197,23 @@ static void cb_video_refresh(const void *data, unsigned width, unsigned height, 
 }
 
 static void cb_audio_sample(int16_t left, int16_t right) {
-    audioRingBuffer[audioWritePos] = left;
-    audioRingBuffer[(audioWritePos + 1) % AUDIO_BUFFER_SIZE] = right;
-    audioWritePos = (audioWritePos + 2) % AUDIO_BUFFER_SIZE;
+    pthread_mutex_lock(&audioMutex);
+    audioFifo[audioWriteIdx] = left;
+    audioFifo[(audioWriteIdx + 1) % AUDIO_RING_SIZE] = right;
+    audioWriteIdx = (audioWriteIdx + 2) % AUDIO_RING_SIZE;
+    pthread_mutex_unlock(&audioMutex);
 }
 
 static size_t cb_audio_sample_batch(const int16_t *data, size_t frames) {
     if (!data || frames == 0) return 0;
     size_t samples = frames * 2;
+
+    pthread_mutex_lock(&audioMutex);
     for (size_t i = 0; i < samples; i++) {
-        audioRingBuffer[audioWritePos] = data[i];
-        audioWritePos = (audioWritePos + 1) % AUDIO_BUFFER_SIZE;
+        audioFifo[audioWriteIdx] = data[i];
+        audioWriteIdx = (audioWriteIdx + 1) % AUDIO_RING_SIZE;
     }
+    pthread_mutex_unlock(&audioMutex);
     return frames;
 }
 
@@ -219,25 +222,25 @@ static void cb_input_poll(void) {}
 static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, unsigned id) {
     if (port != 0) return 0;
 
-    if (device == 1) { // Mando Joypad
+    if (device == 1) {
         switch (id) {
-            case 0: return !(currentKeyMask & (1 << 1)) ? 1 : 0;  // B
-            case 1: return !(currentKeyMask & (1 << 11)) ? 1 : 0; // Y
-            case 2: return !(currentKeyMask & (1 << 2)) ? 1 : 0;  // SELECT
-            case 3: return !(currentKeyMask & (1 << 3)) ? 1 : 0;  // START
-            case 4: return !(currentKeyMask & (1 << 6)) ? 1 : 0;  // UP
-            case 5: return !(currentKeyMask & (1 << 7)) ? 1 : 0;  // DOWN
-            case 6: return !(currentKeyMask & (1 << 5)) ? 1 : 0;  // LEFT
-            case 7: return !(currentKeyMask & (1 << 4)) ? 1 : 0;  // RIGHT
-            case 8: return !(currentKeyMask & (1 << 0)) ? 1 : 0;  // A
-            case 9: return !(currentKeyMask & (1 << 10)) ? 1 : 0; // X
-            case 10: return !(currentKeyMask & (1 << 9)) ? 1 : 0; // L
-            case 11: return !(currentKeyMask & (1 << 8)) ? 1 : 0; // R
+            case 0: return !(currentKeyMask & (1 << 1)) ? 1 : 0;
+            case 1: return !(currentKeyMask & (1 << 11)) ? 1 : 0;
+            case 2: return !(currentKeyMask & (1 << 2)) ? 1 : 0;
+            case 3: return !(currentKeyMask & (1 << 3)) ? 1 : 0;
+            case 4: return !(currentKeyMask & (1 << 6)) ? 1 : 0;
+            case 5: return !(currentKeyMask & (1 << 7)) ? 1 : 0;
+            case 6: return !(currentKeyMask & (1 << 5)) ? 1 : 0;
+            case 7: return !(currentKeyMask & (1 << 4)) ? 1 : 0;
+            case 8: return !(currentKeyMask & (1 << 0)) ? 1 : 0;
+            case 9: return !(currentKeyMask & (1 << 10)) ? 1 : 0;
+            case 10: return !(currentKeyMask & (1 << 9)) ? 1 : 0;
+            case 11: return !(currentKeyMask & (1 << 8)) ? 1 : 0;
             default: return 0;
         }
     }
 
-    if (device == 6) { // Pantalla Táctil
+    if (device == 6) {
         if (id == 0) return (int16_t)(((float)touchCoordX / 255.0f) * 65534.0f - 32767.0f);
         if (id == 1) return (int16_t)(((float)touchCoordY / 191.0f) * 65534.0f - 32767.0f);
         if (id == 2) return touchIsActive ? 1 : 0;
@@ -296,7 +299,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jst
 JNIEXPORT jstring JNICALL
 Java_com_ejemplo_emulador_NativeBridge_nativeLoadRom(JNIEnv *env, jobject thiz, jstring rom_path) {
     if (!isCoreLoaded || !core_load_game) {
-        return env->NewStringUTF("Error: melonDS no está inicializado");
+        return env->NewStringUTF("Error: melonDS no inicializado");
     }
 
     const char *path = env->GetStringUTFChars(rom_path, nullptr);
@@ -377,11 +380,29 @@ Java_com_ejemplo_emulador_NativeBridge_nativeGetBottomBuffer(JNIEnv *env, jobjec
     return env->NewDirectByteBuffer(bottomScreenBuffer, BUFFER_SIZE);
 }
 
-JNIEXPORT void JNICALL
+JNIEXPORT jint JNICALL
 Java_com_ejemplo_emulador_NativeBridge_nativeGetAudioSamples(
-    JNIEnv *env, jobject thiz, jshortArray out_buffer, jint count
+    JNIEnv *env, jobject thiz, jshortArray out_buffer, jint max_count
 ) {
-    env->SetShortArrayRegion(out_buffer, 0, count, (jshort*)audioRingBuffer);
+    pthread_mutex_lock(&audioMutex);
+
+    size_t available = (audioWriteIdx >= audioReadIdx)
+                       ? (audioWriteIdx - audioReadIdx)
+                       : (AUDIO_RING_SIZE - audioReadIdx + audioWriteIdx);
+
+    size_t toRead = (available < (size_t)max_count) ? available : (size_t)max_count;
+
+    if (toRead > 0) {
+        jshort temp[toRead];
+        for (size_t i = 0; i < toRead; i++) {
+            temp[i] = audioFifo[audioReadIdx];
+            audioReadIdx = (audioReadIdx + 1) % AUDIO_RING_SIZE;
+        }
+        env->SetShortArrayRegion(out_buffer, 0, toRead, temp);
+    }
+
+    pthread_mutex_unlock(&audioMutex);
+    return (jint)toRead;
 }
 
 JNIEXPORT jstring JNICALL
