@@ -16,9 +16,11 @@
 #define BUFFER_SIZE (DS_WIDTH * DS_HEIGHT * 4)
 #define AUDIO_BUFFER_SIZE 8192
 
+// Búferes de video para OpenGL
 static uint32_t topScreenBuffer[DS_WIDTH * DS_HEIGHT];
 static uint32_t bottomScreenBuffer[DS_WIDTH * DS_HEIGHT];
 
+// Búfer de audio PCM
 static int16_t audioRingBuffer[AUDIO_BUFFER_SIZE];
 static size_t audioWritePos = 0;
 
@@ -29,7 +31,7 @@ static bool touchIsActive = false;
 static bool isCoreLoaded = false;
 static bool isGameLoaded = false;
 
-static int currentPixelFormat = 1; // 1 = XRGB8888, 2 = RGB565
+static int currentPixelFormat = 1; // 1 = XRGB8888, 2 = RGB565, 0 = 0RGB1555
 static char systemDirectory[512] = {0};
 static void *persistedRomData = nullptr;
 static pthread_mutex_t coreMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -79,7 +81,7 @@ static fn_retro_set_input_state core_set_input_state = nullptr;
 
 static void *coreHandle = nullptr;
 
-// --- CONFIGURACIÓN DE ENTORNO LIBRETRO ---
+// --- CONFIGURACIÓN DE PARÁMETROS LIBRETRO ---
 static bool cb_environment(unsigned cmd, void *data) {
     switch (cmd) {
         case 10: // RETRO_ENVIRONMENT_SET_PIXEL_FORMAT
@@ -89,24 +91,35 @@ static bool cb_environment(unsigned cmd, void *data) {
             }
             return false;
 
-        case 15: // RETRO_ENVIRONMENT_GET_VARIABLE (DIRECT BOOT OBLIGATORIO)
+        case 15: // RETRO_ENVIRONMENT_GET_VARIABLE
             if (data) {
                 struct retro_variable *var = (struct retro_variable*)data;
                 if (var->key) {
-                    if (strcmp(var->key, "melonds_boot_direct") == 0) {
-                        var->value = "enabled"; // Arrancar directamente sin BIOS externa
+                    // 1. Arranque directo sin pedir archivos de BIOS externos
+                    if (strcmp(var->key, "melonds_boot_directly") == 0 || strcmp(var->key, "melonds_boot_direct") == 0) {
+                        var->value = "enabled";
+                        return true;
+                    }
+                    if (strcmp(var->key, "melonds_use_bios") == 0) {
+                        var->value = "disabled";
+                        return true;
+                    }
+                    if (strcmp(var->key, "melonds_ds_bios") == 0) {
+                        var->value = "FreeBIOS";
+                        return true;
+                    }
+                    // 2. Desactivar JIT para máxima compatibilidad y estabilidad en Android
+                    if (strcmp(var->key, "melonds_jit") == 0) {
+                        var->value = "disabled";
+                        return true;
+                    }
+                    // 3. Renderizador por software estable
+                    if (strcmp(var->key, "melonds_threaded_renderer") == 0 || strcmp(var->key, "melonds_opengl") == 0) {
+                        var->value = "disabled";
                         return true;
                     }
                     if (strcmp(var->key, "melonds_ds_mode") == 0) {
                         var->value = "DS";
-                        return true;
-                    }
-                    if (strcmp(var->key, "melonds_jit") == 0) {
-                        var->value = "enabled";
-                        return true;
-                    }
-                    if (strcmp(var->key, "melonds_threaded_renderer") == 0) {
-                        var->value = "disabled";
                         return true;
                     }
                 }
@@ -159,7 +172,7 @@ static void cb_video_refresh(const void *data, unsigned width, unsigned height, 
                 bottomScreenBuffer[y * DS_WIDTH + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
             }
         }
-    } else { // 16 bits (RGB565)
+    } else { // 16 bits (RGB565 / 0RGB1555)
         const uint16_t *src = (const uint16_t *)data;
         size_t stride = pitch / sizeof(uint16_t);
 
@@ -291,7 +304,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeLoadRom(JNIEnv *env, jobject thiz, 
     FILE *f = fopen(path, "rb");
     if (!f) {
         env->ReleaseStringUTFChars(rom_path, path);
-        return env->NewStringUTF("Error: No se pudo leer el archivo de la ROM");
+        return env->NewStringUTF("Error: No se pudo leer la ROM");
     }
 
     fseek(f, 0, SEEK_END);
@@ -301,7 +314,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeLoadRom(JNIEnv *env, jobject thiz, 
     if (size == 0) {
         fclose(f);
         env->ReleaseStringUTFChars(rom_path, path);
-        return env->NewStringUTF("Error: Archivo de ROM vacío");
+        return env->NewStringUTF("Error: ROM vacía");
     }
 
     pthread_mutex_lock(&coreMutex);
@@ -349,10 +362,9 @@ Java_com_ejemplo_emulador_NativeBridge_nativeRunFrame(
 
     if (!isGameLoaded || !core_run) return;
 
-    if (pthread_mutex_trylock(&coreMutex) == 0) {
-        core_run();
-        pthread_mutex_unlock(&coreMutex);
-    }
+    pthread_mutex_lock(&coreMutex);
+    core_run();
+    pthread_mutex_unlock(&coreMutex);
 }
 
 JNIEXPORT jobject JNICALL
