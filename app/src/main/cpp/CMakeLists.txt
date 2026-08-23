@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
+
 project("emulatorkernel")
 
 add_library(
@@ -15,4 +16,6 @@ find_library(
 target_link_libraries(
     emulatorkernel
     ${log-lib}
+    android
+    dl
 )
