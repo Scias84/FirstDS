@@ -14,13 +14,11 @@
 #define DS_WIDTH 256
 #define DS_HEIGHT 192
 #define BUFFER_SIZE (DS_WIDTH * DS_HEIGHT * 4)
-#define AUDIO_BUFFER_SIZE 4096
+#define AUDIO_BUFFER_SIZE 8192
 
-// Búferes de video para OpenGL
 static uint32_t topScreenBuffer[DS_WIDTH * DS_HEIGHT];
 static uint32_t bottomScreenBuffer[DS_WIDTH * DS_HEIGHT];
 
-// Búfer de audio PCM
 static int16_t audioRingBuffer[AUDIO_BUFFER_SIZE];
 static size_t audioWritePos = 0;
 
@@ -43,7 +41,11 @@ struct retro_game_info {
     const char *meta;
 };
 
-// --- DEFINICIONES DE TIPOS LIBRETRO ---
+struct retro_variable {
+    const char *key;
+    const char *value;
+};
+
 typedef bool (*retro_environment_t)(unsigned cmd, void *data);
 typedef void (*retro_video_refresh_t)(const void *data, unsigned width, unsigned height, size_t pitch);
 typedef void (*retro_audio_sample_t)(int16_t left, int16_t right);
@@ -58,6 +60,7 @@ typedef void (*fn_retro_unload_game)(void);
 typedef void (*fn_retro_run)(void);
 typedef void (*fn_retro_set_environment)(retro_environment_t);
 typedef void (*fn_retro_set_video_refresh)(retro_video_refresh_t);
+typedef void (*fn_retro_set_audio_sample)(retro_audio_sample_t);
 typedef void (*fn_retro_set_audio_sample_batch)(retro_audio_sample_batch_t);
 typedef void (*fn_retro_set_input_poll)(retro_input_poll_t);
 typedef void (*fn_retro_set_input_state)(retro_input_state_t);
@@ -69,14 +72,14 @@ static fn_retro_unload_game core_unload_game = nullptr;
 static fn_retro_run core_run = nullptr;
 static fn_retro_set_environment core_set_environment = nullptr;
 static fn_retro_set_video_refresh core_set_video_refresh = nullptr;
+static fn_retro_set_audio_sample core_set_audio_sample = nullptr;
 static fn_retro_set_audio_sample_batch core_set_audio_sample_batch = nullptr;
 static fn_retro_set_input_poll core_set_input_poll = nullptr;
 static fn_retro_set_input_state core_set_input_state = nullptr;
 
 static void *coreHandle = nullptr;
 
-// --- CALLBACKS LIBRETRO ROBUSTOS ---
-
+// --- CONFIGURACIÓN DE ENTORNO LIBRETRO ---
 static bool cb_environment(unsigned cmd, void *data) {
     switch (cmd) {
         case 10: // RETRO_ENVIRONMENT_SET_PIXEL_FORMAT
@@ -85,6 +88,31 @@ static bool cb_environment(unsigned cmd, void *data) {
                 return true;
             }
             return false;
+
+        case 15: // RETRO_ENVIRONMENT_GET_VARIABLE (DIRECT BOOT OBLIGATORIO)
+            if (data) {
+                struct retro_variable *var = (struct retro_variable*)data;
+                if (var->key) {
+                    if (strcmp(var->key, "melonds_boot_direct") == 0) {
+                        var->value = "enabled"; // Arrancar directamente sin BIOS externa
+                        return true;
+                    }
+                    if (strcmp(var->key, "melonds_ds_mode") == 0) {
+                        var->value = "DS";
+                        return true;
+                    }
+                    if (strcmp(var->key, "melonds_jit") == 0) {
+                        var->value = "enabled";
+                        return true;
+                    }
+                    if (strcmp(var->key, "melonds_threaded_renderer") == 0) {
+                        var->value = "disabled";
+                        return true;
+                    }
+                }
+            }
+            return false;
+
         case 9:  // RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY
         case 31: // RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY
             if (data && systemDirectory[0] != '\0') {
@@ -92,14 +120,15 @@ static bool cb_environment(unsigned cmd, void *data) {
                 return true;
             }
             return false;
-        case 3:  // RETRO_ENVIRONMENT_GET_CAN_DUPE
+
+        case 3: // RETRO_ENVIRONMENT_GET_CAN_DUPE
             if (data) {
                 *(bool*)data = true;
                 return true;
             }
             return false;
+
         default:
-            // OBLIGATORIO: Devolver false para evitar lecturas de punteros nulos
             return false;
     }
 }
@@ -113,13 +142,21 @@ static void cb_video_refresh(const void *data, unsigned width, unsigned height, 
 
         for (unsigned y = 0; y < DS_HEIGHT && y < height; y++) {
             for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
-                topScreenBuffer[y * DS_WIDTH + x] = src[y * stride + x] | 0xFF000000;
+                uint32_t p = src[y * stride + x];
+                uint8_t r = (p >> 16) & 0xFF;
+                uint8_t g = (p >> 8) & 0xFF;
+                uint8_t b = p & 0xFF;
+                topScreenBuffer[y * DS_WIDTH + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
             }
         }
 
         for (unsigned y = 0; y < DS_HEIGHT && (y + DS_HEIGHT) < height; y++) {
             for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
-                bottomScreenBuffer[y * DS_WIDTH + x] = src[(y + DS_HEIGHT) * stride + x] | 0xFF000000;
+                uint32_t p = src[(y + DS_HEIGHT) * stride + x];
+                uint8_t r = (p >> 16) & 0xFF;
+                uint8_t g = (p >> 8) & 0xFF;
+                uint8_t b = p & 0xFF;
+                bottomScreenBuffer[y * DS_WIDTH + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
             }
         }
     } else { // 16 bits (RGB565)
@@ -148,6 +185,12 @@ static void cb_video_refresh(const void *data, unsigned width, unsigned height, 
     }
 }
 
+static void cb_audio_sample(int16_t left, int16_t right) {
+    audioRingBuffer[audioWritePos] = left;
+    audioRingBuffer[(audioWritePos + 1) % AUDIO_BUFFER_SIZE] = right;
+    audioWritePos = (audioWritePos + 2) % AUDIO_BUFFER_SIZE;
+}
+
 static size_t cb_audio_sample_batch(const int16_t *data, size_t frames) {
     if (!data || frames == 0) return 0;
     size_t samples = frames * 2;
@@ -163,7 +206,7 @@ static void cb_input_poll(void) {}
 static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, unsigned id) {
     if (port != 0) return 0;
 
-    if (device == 1) { // Mando
+    if (device == 1) { // Mando Joypad
         switch (id) {
             case 0: return !(currentKeyMask & (1 << 1)) ? 1 : 0;  // B
             case 1: return !(currentKeyMask & (1 << 11)) ? 1 : 0; // Y
@@ -189,8 +232,6 @@ static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, un
 
     return 0;
 }
-
-// --- FUNCIONES JNI ---
 
 extern "C" {
 
@@ -220,12 +261,14 @@ Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jst
     core_run = (fn_retro_run)dlsym(coreHandle, "retro_run");
     core_set_environment = (fn_retro_set_environment)dlsym(coreHandle, "retro_set_environment");
     core_set_video_refresh = (fn_retro_set_video_refresh)dlsym(coreHandle, "retro_set_video_refresh");
+    core_set_audio_sample = (fn_retro_set_audio_sample)dlsym(coreHandle, "retro_set_audio_sample");
     core_set_audio_sample_batch = (fn_retro_set_audio_sample_batch)dlsym(coreHandle, "retro_set_audio_sample_batch");
     core_set_input_poll = (fn_retro_set_input_poll)dlsym(coreHandle, "retro_set_input_poll");
     core_set_input_state = (fn_retro_set_input_state)dlsym(coreHandle, "retro_set_input_state");
 
     if (core_set_environment) core_set_environment(cb_environment);
     if (core_set_video_refresh) core_set_video_refresh(cb_video_refresh);
+    if (core_set_audio_sample) core_set_audio_sample(cb_audio_sample);
     if (core_set_audio_sample_batch) core_set_audio_sample_batch(cb_audio_sample_batch);
     if (core_set_input_poll) core_set_input_poll(cb_input_poll);
     if (core_set_input_state) core_set_input_state(cb_input_state);
