@@ -3,40 +3,25 @@ package com.ejemplo.emulador
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import java.io.InputStream
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var screenTop: TextView
     private lateinit var screenBottom: TextView
 
-    // Cargar la librería nativa de C++ al iniciar la app
-    companion object {
-        init {
-            System.loadLibrary("emulatorkernel")
-        }
-    }
-
-    // Declaración del método nativo escrito en C++
-    external fun initEmulatorCore(romPath: String): String
-
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
-                val path = uri.path ?: "rom_virtual.nds"
-                
-                // Llamamos al núcleo en C++ pasando la ruta del juego
-                val kernelResponse = initEmulatorCore(path)
-                
-                screenTop.text = "¡Juego Enlazado al Motor C++!"
-                screenBottom.text = kernelResponse
-                Toast.makeText(this, "Motor NDK activado con éxito", Toast.LENGTH_SHORT).show()
+                parseNdsHeader(uri)
             }
         }
     }
@@ -48,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         screenTop = findViewById(R.id.screen_top)
         screenBottom = findViewById(R.id.screen_bottom)
 
+        // Tocar pantalla superior para abrir ROMs (.nds)
         screenTop.setOnClickListener {
             openRomSelector()
         }
@@ -61,6 +47,35 @@ class MainActivity : AppCompatActivity() {
             type = "*/*"
         }
         filePickerLauncher.launch(intent)
+    }
+
+    private fun parseNdsHeader(uri: Uri) {
+        try {
+            var fileName = "juego.nds"
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && nameIndex != -1) {
+                    fileName = cursor.getString(nameIndex)
+                }
+            }
+
+            val inputStream: InputStream? = contentResolver.openInputStream(uri)
+            val headerBuffer = ByteArray(16)
+            inputStream?.use { stream ->
+                stream.read(headerBuffer)
+            }
+
+            val gameTitle = String(headerBuffer, 0, 12, Charsets.US_ASCII).trim { it <= ' ' }
+            val gameCode = String(headerBuffer, 12, 4, Charsets.US_ASCII).trim { it <= ' ' }
+
+            screenTop.text = "Título: $gameTitle\nArchivo: $fileName"
+            screenBottom.text = "ID del Cartucho: $gameCode\n(ROM Enlazada y Lista)"
+            
+            Toast.makeText(this, "¡ROM cargada con éxito!", Toast.LENGTH_SHORT).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al leer la ROM: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun setupControllerButtons() {
