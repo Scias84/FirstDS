@@ -123,7 +123,8 @@ class MainActivity : AppCompatActivity() {
             if (datBytes.isNotEmpty()) {
                 activeCheatsCount++
                 cheatStatusText = "GameShark: $fileName (${datBytes.size / 1024} KB activos)"
-                Toast.load(this, "¡Base de datos .dat cargada con éxito!", Toast.LENGTH_SHORT).show()
+                // CORREGIDO: Usando makeText correctamente
+                Toast.makeText(this, "¡Base de datos .dat cargada con éxito!", Toast.LENGTH_SHORT).show()
                 updateTopScreenDisplay()
             } else {
                 Toast.makeText(this, "El archivo .dat está vacío", Toast.LENGTH_SHORT).show()
