@@ -9,7 +9,6 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.dsemu.drastic.DraSticBridge
 import java.io.File
 import java.io.FileOutputStream
 
@@ -17,8 +16,6 @@ class MainActivity : AppCompatActivity() {
 
     private var keyState: Int = 0x0FFF
     private val touchDigitizer = TouchDigitizer()
-    private val audioEngine = AudioEngine()
-    private lateinit var systemManager: SystemManager
     private var gameLoop: GameLoop? = null
 
     companion object {
@@ -38,13 +35,11 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var glScreenTop: GLSurfaceView
     private lateinit var glScreenBottom: GLSurfaceView
-    private lateinit var topRenderer: EmulatorRenderer
-    private lateinit var bottomRenderer: EmulatorRenderer
 
     private val romPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        uri?.let { cargarRomSeleccionada(it) }
+        uri?.let { cargarRom(it) }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -52,43 +47,40 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 1. Inicializar estructura de carpetas (Saves, States, BIOS)
-        systemManager = SystemManager(this)
-        systemManager.initializeDirectories()
+        // 1. Inicializar motor nativo C++
+        NativeBridge.nativeInit(filesDir.absolutePath)
 
-        // 2. Configurar vistas de OpenGL ES 2.0
+        // 2. Configurar vistas de OpenGL ES
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
 
         glScreenTop.setEGLContextClientVersion(2)
-        topRenderer = EmulatorRenderer(isTopScreen = true)
-        glScreenTop.setRenderer(topRenderer)
+        glScreenTop.setRenderer(EmulatorRenderer(isTopScreen = true))
         glScreenTop.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
         glScreenBottom.setEGLContextClientVersion(2)
-        bottomRenderer = EmulatorRenderer(isTopScreen = false)
-        glScreenBottom.setRenderer(bottomRenderer)
+        glScreenBottom.setRenderer(EmulatorRenderer(isTopScreen = false))
         glScreenBottom.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
-        // 3. Crear bucle de juego
-        gameLoop = GameLoop(glScreenTop, glScreenBottom) { keyState }
+        // 3. Crear el hilo de ejecución a 60 FPS
+        gameLoop = GameLoop(
+            glTop = glScreenTop,
+            glBottom = glScreenBottom,
+            getKeyMask = { keyState },
+            getTouchState = { touchDigitizer }
+        )
 
-        // 4. Inicializar motor con la ruta del sistema
-        try {
-            DraSticBridge.initCore(filesDir.absolutePath)
-        } catch (_: Throwable) { }
-
-        // Selector de ROMs al tocar pantalla superior
+        // Tocar pantalla superior abre el selector de ROMs
         glScreenTop.setOnClickListener {
             romPickerLauncher.launch(arrayOf("*/*"))
         }
 
-        // Digitalizador táctil en pantalla inferior
+        // Tocar pantalla inferior pasa coordenadas táctiles NDS
         glScreenBottom.setOnTouchListener { v, event ->
             touchDigitizer.handleTouchEvent(v, event)
         }
 
-        // 5. Configurar botones
+        // 4. Configuración de controles
         setupButton(R.id.btn_a, KEY_A)
         setupButton(R.id.btn_b, KEY_B)
         setupButton(R.id.btn_x, KEY_X)
@@ -108,30 +100,27 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         glScreenTop.onResume()
         glScreenBottom.onResume()
-        audioEngine.start()
         gameLoop?.start()
     }
 
     override fun onPause() {
         super.onPause()
         gameLoop?.stop()
-        audioEngine.stop()
         glScreenTop.onPause()
         glScreenBottom.onPause()
     }
 
-    private fun cargarRomSeleccionada(uri: Uri) {
+    private fun cargarRom(uri: Uri) {
         try {
-            Toast.makeText(this, "Cargando ROM...", Toast.LENGTH_SHORT).show()
-            val tempRomFile = File(cacheDir, "game.nds")
+            Toast.makeText(this, "Cargando juego...", Toast.LENGTH_SHORT).show()
+            val tempRom = File(cacheDir, "game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(tempRomFile).use { output ->
+                FileOutputStream(tempRom).use { output ->
                     input.copyTo(output)
                 }
             }
-            DraSticBridge.loadRom(tempRomFile.absolutePath)
-            Toast.makeText(this, "ROM montada con éxito", Toast.LENGTH_SHORT).show()
-            audioEngine.start()
+            NativeBridge.nativeLoadRom(tempRom.absolutePath)
+            Toast.makeText(this, "¡ROM montada! Ejecutando motor...", Toast.LENGTH_SHORT).show()
             gameLoop?.start()
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
@@ -176,4 +165,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
