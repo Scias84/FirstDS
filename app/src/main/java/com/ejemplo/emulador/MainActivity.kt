@@ -23,14 +23,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var screenTop: TextView
     private lateinit var screenBottom: TextView
 
-    // Simulación de registros de hardware de la Nintendo DS
-    private var regKeyInput: Int = 0x3FF // Bits en alto (no presionados)
+    // Control del Emulador y Registros
+    private var regKeyInput: Int = 0x3FF
     private var isEmulatorRunning = false
     private var frameCounter = 0
     private val handler = Handler(Looper.getMainLooper())
     private var saveFile: File? = null
+    private var currentGameTitle = ""
 
-    // Mapeo de bits para REG_KEYINPUT (Lógica invertida: 0 = presionado)
+    // Variables de Fast-Forward / Turbo
+    private var speedMultiplier = 1 // 1x, 2x, 4x, 8x
+    private val speeds = intArrayOf(1, 2, 4, 8)
+    private var currentSpeedIndex = 0
+
     companion object {
         const val KEY_A = 0
         const val KEY_B = 1
@@ -63,9 +68,19 @@ class MainActivity : AppCompatActivity() {
         screenTop = findViewById(R.id.screen_top)
         screenBottom = findViewById(R.id.screen_bottom)
 
-        // Tocar pantalla superior para cargar ROMs
+        // Tocar pantalla superior: abrir ROM (si no corre) o alternar Turbo (si ya corre)
         screenTop.setOnClickListener {
+            if (!isEmulatorRunning) {
+                openRomSelector()
+            } else {
+                toggleFastForward()
+            }
+        }
+
+        // Mantener presionado para cambiar de juego
+        screenTop.setOnLongClickListener {
             openRomSelector()
+            true
         }
 
         setupStylusTouchSystem()
@@ -80,6 +95,20 @@ class MainActivity : AppCompatActivity() {
         filePickerLauncher.launch(intent)
     }
 
+    private fun toggleFastForward() {
+        currentSpeedIndex = (currentSpeedIndex + 1) % speeds.size
+        speedMultiplier = speeds[currentSpeedIndex]
+        val targetFps = 60 * speedMultiplier
+
+        Toast.makeText(
+            this,
+            "Velocidad: ${speedMultiplier}x (~$targetFps FPS)",
+            Toast.LENGTH_SHORT
+        ).show()
+
+        updateTopScreenDisplay()
+    }
+
     private fun initFullEmulatorSession(uri: Uri) {
         try {
             var fileName = "juego.nds"
@@ -90,15 +119,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // 1. Crear o enlazar archivo de guardado (.sav) para evitar errores de memoria Flash
+            // Archivo de respaldo .sav (512KB Flash)
             val saveFileName = fileName.substringBeforeLast(".") + ".sav"
             saveFile = File(filesDir, saveFileName)
             if (!saveFile!!.exists()) {
                 saveFile!!.createNewFile()
-                saveFile!!.writeBytes(ByteArray(512 * 1024)) // 512KB Flash vacío
+                saveFile!!.writeBytes(ByteArray(512 * 1024))
             }
 
-            // 2. Leer Cabecera NDS
+            // Lectura de Cabecera
             val inputStream: InputStream? = contentResolver.openInputStream(uri)
             val headerBuffer = ByteArray(512)
             inputStream?.use { stream -> stream.read(headerBuffer) }
@@ -106,41 +135,56 @@ class MainActivity : AppCompatActivity() {
 
             val gameTitle = String(headerBuffer, 0, 12, Charsets.US_ASCII).trim { it <= ' ' }
             val gameCode = String(headerBuffer, 12, 4, Charsets.US_ASCII).trim { it <= ' ' }
+            currentGameTitle = "$gameTitle [$gameCode]"
 
-            screenTop.text = """
-                [ EMULADOR ACTIVO ]
-                Juego: $gameTitle [$gameCode]
-                Save: ${saveFile!!.name} (${saveFile!!.length() / 1024} KB)
-            """.trimIndent()
-
-            // 3. Iniciar el bucle de renderizado a 60 FPS
+            updateTopScreenDisplay()
             startEmulatorGameLoop()
 
-            Toast.makeText(this, "¡Sesión de emulación iniciada!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "¡Juego iniciado! Toca arriba para modo Turbo", Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
-    // Bucle cíclico de 60 FPS simulado
+    private fun updateTopScreenDisplay() {
+        val targetFps = 60 * speedMultiplier
+        screenTop.text = """
+            [ EN EJECUCIÓN ]
+            $currentGameTitle
+            Velocidad: ${speedMultiplier}x ($targetFps FPS Target)
+            (Toca aquí para alternar 1x/2x/4x/8x)
+        """.trimIndent()
+    }
+
+    // Bucle con retardo dinámico de acuerdo al Turbo seleccionado
     private fun startEmulatorGameLoop() {
         isEmulatorRunning = true
         frameCounter = 0
-        handler.post(object : Runnable {
+        handler.removeCallbacksAndMessages(null)
+
+        val loopRunnable = object : Runnable {
             override fun run() {
                 if (isEmulatorRunning) {
-                    frameCounter++
+                    // Procesar fotogramas según el multiplicador
+                    frameCounter += speedMultiplier
+                    val calculatedFps = 60 * speedMultiplier
+
                     screenBottom.text = """
-                        [ MOTOR DE EMULACIÓN - 60 FPS ]
-                        Frames: $frameCounter
-                        REG_KEYINPUT Hex: 0x${Integer.toHexString(regKeyInput).uppercase()}
-                        (Controles y Memoria Sincronizados)
+                        [ MOTOR NDS - VELOCIDAD ${speedMultiplier}X ]
+                        Frame actual: $frameCounter
+                        Rendimiento: ~$calculatedFps FPS
+                        REG_KEYINPUT: 0x${Integer.toHexString(regKeyInput).uppercase()}
+                        Save: ${saveFile?.name ?: "N/A"}
                     """.trimIndent()
-                    handler.postDelayed(this, 16) // ~60 FPS
+
+                    // Intervalo base de 16ms adaptado al multiplicador
+                    val frameDelay = (16L / speedMultiplier).coerceAtLeast(2L)
+                    handler.postDelayed(this, frameDelay)
                 }
             }
-        })
+        }
+        handler.post(loopRunnable)
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -155,10 +199,10 @@ class MainActivity : AppCompatActivity() {
 
                 when (event.action) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                        // Táctil activo en coordenadas DS (dsX, dsY)
+                        // Stylus activo en (dsX, dsY)
                     }
                     MotionEvent.ACTION_UP -> {
-                        // Táctil en reposo
+                        // Stylus libre
                     }
                 }
             }
@@ -166,7 +210,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Mapeo avanzado de botones virtuales a los bits del registro REG_KEYINPUT de la DS
     @SuppressLint("ClickableViewAccessibility")
     private fun setupControllerButtonsWithHardwareMapping() {
         val buttonMap = mapOf(
@@ -188,12 +231,10 @@ class MainActivity : AppCompatActivity() {
             findViewById<View>(viewId)?.setOnTouchListener { _, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        // Lógica invertida de la DS: 0 = presionado
                         regKeyInput = regKeyInput and (1 shl keyBit).inv()
                         true
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        // Al soltar, el bit vuelve a 1 (libre)
                         regKeyInput = regKeyInput or (1 shl keyBit)
                         true
                     }
@@ -206,5 +247,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         isEmulatorRunning = false
+        handler.removeCallbacksAndMessages(null)
     }
 }
