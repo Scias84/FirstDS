@@ -1,12 +1,12 @@
 package com.ejemplo.emulador
 
 import android.opengl.GLSurfaceView
-import com.dsemu.drastic.DraSticBridge
 
 class GameLoop(
     private val glTop: GLSurfaceView,
     private val glBottom: GLSurfaceView,
-    private val getKeyMask: () -> Int
+    private val getKeyMask: () -> Int,
+    private val getTouchState: () -> TouchDigitizer
 ) : Runnable {
 
     @Volatile
@@ -14,7 +14,7 @@ class GameLoop(
         private set
 
     private var gameThread: Thread? = null
-    private val targetFrameTimeMs = 1000L / 60L // ~16.6ms por cuadro (60 FPS)
+    private val targetFrameTimeMs = 1000L / 60L
 
     fun start() {
         if (isRunning) return
@@ -37,17 +37,16 @@ class GameLoop(
         while (isRunning) {
             val startTime = System.currentTimeMillis()
 
-            // 1. Enviar estado de botones al motor
-            val currentKeys = getKeyMask()
-            try {
-                DraSticBridge.updateFrame(currentKeys)
-            } catch (_: Throwable) { }
+            val keys = getKeyMask()
+            val touch = getTouchState()
 
-            // 2. Solicitar actualización de gráficos en pantalla
+            // 1. Ejecutar el fotograma en C++
+            NativeBridge.nativeRunFrame(keys, touch.dsX, touch.dsY, touch.isTouching)
+
+            // 2. Renderizar fotograma en GPU
             glTop.requestRender()
             glBottom.requestRender()
 
-            // 3. Control de velocidad a 60 FPS
             val elapsed = System.currentTimeMillis() - startTime
             val sleepTime = targetFrameTimeMs - elapsed
 
