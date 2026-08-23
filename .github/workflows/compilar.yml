@@ -20,10 +20,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Instalar NDK y CMake obligatorios para C++
+      - name: Instalar NDK y CMake
         run: |
-          yes | sdkmanager --licenses || true
-          sdkmanager --install "ndk;25.2.9519653" "cmake;3.22.1"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653" "cmake;3.22.1"
 
       - name: Dar permisos de ejecución a Gradle
         run: chmod +x gradlew
