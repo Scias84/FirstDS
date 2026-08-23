@@ -10,17 +10,23 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        setupControllerButtons()
+    }
+
+    private fun setupControllerButtons() {
         val buttons = mapOf(
             R.id.btn_a to "A",
             R.id.btn_b to "B",
             R.id.btn_x to "X",
             R.id.btn_y to "Y",
+            R.id.btn_l to "L",
+            R.id.btn_r to "R",
+            R.id.btn_start to "START",
+            R.id.btn_select to "SELECT",
             R.id.btn_up to "Arriba",
             R.id.btn_down to "Abajo",
             R.id.btn_left to "Izquierda",
-            R.id.btn_right to "Derecha",
-            R.id.btn_start to "Start",
-            R.id.btn_select to "Select"
+            R.id.btn_right to "Derecha"
         )
 
         buttons.forEach { (id, name) ->
