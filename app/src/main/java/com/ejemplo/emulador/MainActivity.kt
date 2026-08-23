@@ -16,6 +16,7 @@ class MainActivity : AppCompatActivity() {
 
     private var keyState: Int = 0x0FFF
     private val touchDigitizer = TouchDigitizer()
+    private val audioEngine = AudioEngine(44100)
     private var gameLoop: GameLoop? = null
 
     companion object {
@@ -63,6 +64,7 @@ class MainActivity : AppCompatActivity() {
         gameLoop = GameLoop(
             glTop = glScreenTop,
             glBottom = glScreenBottom,
+            audioEngine = audioEngine,
             getKeyMask = { keyState },
             getTouchState = { touchDigitizer }
         )
@@ -94,19 +96,21 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         glScreenTop.onResume()
         glScreenBottom.onResume()
+        audioEngine.start()
         gameLoop?.start()
     }
 
     override fun onPause() {
         super.onPause()
         gameLoop?.stop()
+        audioEngine.stop()
         glScreenTop.onPause()
         glScreenBottom.onPause()
     }
 
     private fun cargarRom(uri: Uri) {
         try {
-            Toast.makeText(this, "Leyendo cartucho NDS...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Cargando cartucho...", Toast.LENGTH_SHORT).show()
             val tempRom = File(cacheDir, "game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRom).use { output ->
@@ -117,6 +121,7 @@ class MainActivity : AppCompatActivity() {
             val romResult = NativeBridge.nativeLoadRom(tempRom.absolutePath)
             Toast.makeText(this, romResult, Toast.LENGTH_LONG).show()
 
+            audioEngine.start()
             gameLoop?.start()
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
