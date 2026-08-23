@@ -2,10 +2,11 @@ package com.ejemplo.emulador
 
 import android.annotation.SuppressLint
 import android.net.Uri
+import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
-import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.dsemu.drastic.DraSticBridge
@@ -31,10 +32,11 @@ class MainActivity : AppCompatActivity() {
         const val KEY_Y = 1 shl 11
     }
 
-    private lateinit var screenTop: TextView
-    private lateinit var screenBottom: TextView
+    private lateinit var glScreenTop: GLSurfaceView
+    private lateinit var glScreenBottom: GLSurfaceView
+    private lateinit var topRenderer: EmulatorRenderer
+    private lateinit var bottomRenderer: EmulatorRenderer
 
-    // Selector de archivos del sistema
     private val romPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -46,86 +48,88 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        screenTop = findViewById(R.id.screen_top)
-        screenBottom = findViewById(R.id.screen_bottom)
+        // 1. Inicializar vistas OpenGL ES 2.0
+        glScreenTop = findViewById(R.id.gl_screen_top)
+        glScreenBottom = findViewById(R.id.gl_screen_bottom)
 
-        // Inicializar almacenamiento interno para el motor
+        glScreenTop.setEGLContextClientVersion(2)
+        topRenderer = EmulatorRenderer(isTopScreen = true)
+        glScreenTop.setRenderer(topRenderer)
+
+        glScreenBottom.setEGLContextClientVersion(2)
+        bottomRenderer = EmulatorRenderer(isTopScreen = false)
+        glScreenBottom.setRenderer(bottomRenderer)
+
+        // 2. Cargar motor
         try {
             val storagePath = filesDir.absolutePath
             DraSticBridge.initCore(storagePath)
-            screenTop.text = "[ MOTOR LISTO ]\nToca aquí para cargar una ROM (.nds)"
-        } catch (e: Throwable) {
-            screenTop.text = "[ MODO INTERFAZ ]\nToca aquí para elegir una ROM"
-        }
+        } catch (_: Throwable) { }
 
-        // Tocar la pantalla superior abre el explorador de archivos
-        screenTop.setOnClickListener {
+        // Tocar la pantalla superior abre el selector de ROMs
+        glScreenTop.setOnClickListener {
             romPickerLauncher.launch(arrayOf("*/*"))
         }
 
-        // Configuración de botones
-        setupButton(R.id.btn_a, KEY_A, "A")
-        setupButton(R.id.btn_b, KEY_B, "B")
-        setupButton(R.id.btn_x, KEY_X, "X")
-        setupButton(R.id.btn_y, KEY_Y, "Y")
-        setupButton(R.id.btn_l, KEY_L, "L")
-        setupButton(R.id.btn_r, KEY_R, "R")
-        setupButton(R.id.btn_start, KEY_START, "START")
-        setupButton(R.id.btn_select, KEY_SELECT, "SELECT")
+        // 3. Controles táctiles
+        setupButton(R.id.btn_a, KEY_A)
+        setupButton(R.id.btn_b, KEY_B)
+        setupButton(R.id.btn_x, KEY_X)
+        setupButton(R.id.btn_y, KEY_Y)
+        setupButton(R.id.btn_l, KEY_L)
+        setupButton(R.id.btn_r, KEY_R)
+        setupButton(R.id.btn_start, KEY_START)
+        setupButton(R.id.btn_select, KEY_SELECT)
 
-        // Configuración de cruceta
-        setupDirectionButton(R.id.btn_up, KEY_UP, "ARRIBA")
-        setupDirectionButton(R.id.btn_down, KEY_DOWN, "ABAJO")
-        setupDirectionButton(R.id.btn_left, KEY_LEFT, "IZQUIERDA")
-        setupDirectionButton(R.id.btn_right, KEY_RIGHT, "DERECHA")
+        setupDirectionButton(R.id.btn_up, KEY_UP)
+        setupDirectionButton(R.id.btn_down, KEY_DOWN)
+        setupDirectionButton(R.id.btn_left, KEY_LEFT)
+        setupDirectionButton(R.id.btn_right, KEY_RIGHT)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        glScreenTop.onResume()
+        glScreenBottom.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        glScreenTop.onPause()
+        glScreenBottom.onPause()
     }
 
     private fun cargarRomSeleccionada(uri: Uri) {
         try {
-            screenTop.text = "Copiando ROM a la memoria de trabajo..."
-            
-            // Copiar el archivo seleccionado a la memoria interna de la app
+            Toast.makeText(this, "Cargando ROM...", Toast.LENGTH_SHORT).show()
             val tempRomFile = File(cacheDir, "game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRomFile).use { output ->
                     input.copyTo(output)
                 }
             }
-
-            // Notificar al motor nativo
-            val exito = try {
-                DraSticBridge.loadRom(tempRomFile.absolutePath)
-            } catch (e: Throwable) {
-                false
-            }
-
-            if (exito) {
-                screenTop.text = "[ ROM CARGADA CON ÉXITO ]\n${tempRomFile.name} (${tempRomFile.length() / (1024 * 1024)} MB)"
-            } else {
-                screenTop.text = "[ ARCHIVO LISTO EN CACHE ]\n${tempRomFile.name}\nEsperando bucle gráfico"
-            }
+            DraSticBridge.loadRom(tempRomFile.absolutePath)
+            Toast.makeText(this, "ROM montada en memoria GPU", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            screenTop.text = "Error al leer ROM: ${e.message}"
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun setupButton(viewId: Int, keyMask: Int, name: String) {
+    private fun setupButton(viewId: Int, keyMask: Int) {
         val view = findViewById<View>(viewId) ?: return
         view.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.alpha = 0.5f
                     keyState = keyState and keyMask.inv()
-                    updateStatus("Botón: $name")
-                    sendInputToCore()
+                    sendInput()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.alpha = 1.0f
                     keyState = keyState or keyMask
-                    updateStatus("Liberado: $name")
-                    sendInputToCore()
+                    sendInput()
                     true
                 }
                 else -> false
@@ -134,19 +138,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun setupDirectionButton(viewId: Int, keyMask: Int, direction: String) {
+    private fun setupDirectionButton(viewId: Int, keyMask: Int) {
         val view = findViewById<View>(viewId) ?: return
         view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     keyState = keyState and keyMask.inv()
-                    updateStatus("Cruceta: $direction")
-                    sendInputToCore()
+                    sendInput()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     keyState = keyState or keyMask
-                    sendInputToCore()
+                    sendInput()
                     true
                 }
                 else -> false
@@ -154,11 +157,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateStatus(info: String) {
-        screenBottom.text = "[ ENTRADA TÁCTIL ]\n$info\nMáscara: 0x${Integer.toHexString(keyState).uppercase()}"
-    }
-
-    private fun sendInputToCore() {
+    private fun sendInput() {
         try {
             DraSticBridge.updateFrame(keyState)
         } catch (_: Throwable) { }
