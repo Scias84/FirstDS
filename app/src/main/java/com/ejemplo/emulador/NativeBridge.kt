@@ -16,6 +16,6 @@ object NativeBridge {
     external fun nativeRunFrame(keyMask: Int, touchX: Int, touchY: Int, isTouching: Boolean)
     external fun nativeGetTopBuffer(): ByteBuffer?
     external fun nativeGetBottomBuffer(): ByteBuffer?
-    external fun nativeGetAudioSamples(outBuffer: ShortArray, count: Int)
+    external fun nativeGetAudioSamples(outBuffer: ShortArray, maxCount: Int): Int
     external fun nativeGetCpuStatus(): String
 }
