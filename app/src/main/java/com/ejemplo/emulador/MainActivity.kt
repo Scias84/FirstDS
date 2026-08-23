@@ -1,7 +1,7 @@
 package com.ejemplo.emulador
 
 import android.os.Bundle
-import android.widget.Button
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
@@ -10,7 +10,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Lista de botones con sus nombres para probar pulsaciones
         val buttons = mapOf(
             R.id.btn_a to "A",
             R.id.btn_b to "B",
@@ -27,7 +26,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         buttons.forEach { (id, name) ->
-            findViewById<Button>(id)?.setOnClickListener {
+            findViewById<View>(id)?.setOnClickListener {
                 Toast.makeText(this, "Botón $name presionado", Toast.LENGTH_SHORT).show()
             }
         }
