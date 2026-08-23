@@ -17,6 +17,8 @@ class MainActivity : AppCompatActivity() {
 
     private var keyState: Int = 0x0FFF
     private val touchDigitizer = TouchDigitizer()
+    private val audioEngine = AudioEngine()
+    private lateinit var systemManager: SystemManager
     private var gameLoop: GameLoop? = null
 
     companion object {
@@ -50,7 +52,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 1. Configuración de pantallas OpenGL ES 2.0
+        // 1. Inicializar estructura de carpetas (Saves, States, BIOS)
+        systemManager = SystemManager(this)
+        systemManager.initializeDirectories()
+
+        // 2. Configurar vistas de OpenGL ES 2.0
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
 
@@ -64,26 +70,25 @@ class MainActivity : AppCompatActivity() {
         glScreenBottom.setRenderer(bottomRenderer)
         glScreenBottom.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
-        // 2. Crear instancia del bucle de juego
+        // 3. Crear bucle de juego
         gameLoop = GameLoop(glScreenTop, glScreenBottom) { keyState }
 
-        // 3. Inicializar ruta de almacenamiento del motor
+        // 4. Inicializar motor con la ruta del sistema
         try {
-            val storagePath = filesDir.absolutePath
-            DraSticBridge.initCore(storagePath)
+            DraSticBridge.initCore(filesDir.absolutePath)
         } catch (_: Throwable) { }
 
-        // Tocar pantalla superior lanza selector de juegos
+        // Selector de ROMs al tocar pantalla superior
         glScreenTop.setOnClickListener {
             romPickerLauncher.launch(arrayOf("*/*"))
         }
 
-        // Tocar pantalla inferior detecta coordenadas táctiles
+        // Digitalizador táctil en pantalla inferior
         glScreenBottom.setOnTouchListener { v, event ->
             touchDigitizer.handleTouchEvent(v, event)
         }
 
-        // 4. Configuración de botones
+        // 5. Configurar botones
         setupButton(R.id.btn_a, KEY_A)
         setupButton(R.id.btn_b, KEY_B)
         setupButton(R.id.btn_x, KEY_X)
@@ -103,19 +108,21 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         glScreenTop.onResume()
         glScreenBottom.onResume()
+        audioEngine.start()
         gameLoop?.start()
     }
 
     override fun onPause() {
         super.onPause()
         gameLoop?.stop()
+        audioEngine.stop()
         glScreenTop.onPause()
         glScreenBottom.onPause()
     }
 
     private fun cargarRomSeleccionada(uri: Uri) {
         try {
-            Toast.makeText(this, "Cargando archivo ROM...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Cargando ROM...", Toast.LENGTH_SHORT).show()
             val tempRomFile = File(cacheDir, "game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRomFile).use { output ->
@@ -123,7 +130,8 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             DraSticBridge.loadRom(tempRomFile.absolutePath)
-            Toast.makeText(this, "ROM montada correctamente", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "ROM montada con éxito", Toast.LENGTH_SHORT).show()
+            audioEngine.start()
             gameLoop?.start()
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
@@ -168,3 +176,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
