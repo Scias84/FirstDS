@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <android/log.h>
 
 #define LOG_TAG "MelonBridge"
@@ -32,6 +33,8 @@ static bool isGameLoaded = false;
 
 static int currentPixelFormat = 1; // 1 = XRGB8888, 2 = RGB565
 static char systemDirectory[512] = {0};
+static void *persistedRomData = nullptr;
+static pthread_mutex_t coreMutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct retro_game_info {
     const char *path;
@@ -72,7 +75,7 @@ static fn_retro_set_input_state core_set_input_state = nullptr;
 
 static void *coreHandle = nullptr;
 
-// --- CALLBACKS LIBRETRO ---
+// --- CALLBACKS LIBRETRO ROBUSTOS ---
 
 static bool cb_environment(unsigned cmd, void *data) {
     switch (cmd) {
@@ -84,18 +87,25 @@ static bool cb_environment(unsigned cmd, void *data) {
             return false;
         case 9:  // RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY
         case 31: // RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY
-            if (data && systemDirectory[0] != 0) {
+            if (data && systemDirectory[0] != '\0') {
                 *(const char**)data = systemDirectory;
                 return true;
             }
             return false;
+        case 3:  // RETRO_ENVIRONMENT_GET_CAN_DUPE
+            if (data) {
+                *(bool*)data = true;
+                return true;
+            }
+            return false;
         default:
-            return true;
+            // OBLIGATORIO: Devolver false para evitar lecturas de punteros nulos
+            return false;
     }
 }
 
 static void cb_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch) {
-    if (!data) return;
+    if (!data || width == 0 || height == 0) return;
 
     if (currentPixelFormat == 1) { // 32 bits (XRGB8888)
         const uint32_t *src = (const uint32_t *)data;
@@ -112,7 +122,7 @@ static void cb_video_refresh(const void *data, unsigned width, unsigned height, 
                 bottomScreenBuffer[y * DS_WIDTH + x] = src[(y + DS_HEIGHT) * stride + x] | 0xFF000000;
             }
         }
-    } else { // 16 bits (RGB565 / 0RGB1555)
+    } else { // 16 bits (RGB565)
         const uint16_t *src = (const uint16_t *)data;
         size_t stride = pitch / sizeof(uint16_t);
 
@@ -139,6 +149,7 @@ static void cb_video_refresh(const void *data, unsigned width, unsigned height, 
 }
 
 static size_t cb_audio_sample_batch(const int16_t *data, size_t frames) {
+    if (!data || frames == 0) return 0;
     size_t samples = frames * 2;
     for (size_t i = 0; i < samples; i++) {
         audioRingBuffer[audioWritePos] = data[i];
@@ -152,7 +163,7 @@ static void cb_input_poll(void) {}
 static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, unsigned id) {
     if (port != 0) return 0;
 
-    if (device == 1) { // RETRO_DEVICE_JOYPAD
+    if (device == 1) { // Mando
         switch (id) {
             case 0: return !(currentKeyMask & (1 << 1)) ? 1 : 0;  // B
             case 1: return !(currentKeyMask & (1 << 11)) ? 1 : 0; // Y
@@ -170,7 +181,7 @@ static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, un
         }
     }
 
-    if (device == 6) { // RETRO_DEVICE_POINTER
+    if (device == 6) { // Pantalla Táctil
         if (id == 0) return (int16_t)(((float)touchCoordX / 255.0f) * 65534.0f - 32767.0f);
         if (id == 1) return (int16_t)(((float)touchCoordY / 191.0f) * 65534.0f - 32767.0f);
         if (id == 2) return touchIsActive ? 1 : 0;
@@ -179,26 +190,25 @@ static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, un
     return 0;
 }
 
-// --- PUENTE JNI ---
+// --- FUNCIONES JNI ---
 
 extern "C" {
 
 JNIEXPORT jboolean JNICALL
 Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jstring system_path) {
     const char *nativePath = env->GetStringUTFChars(system_path, nullptr);
-
     snprintf(systemDirectory, sizeof(systemDirectory), "%s", nativePath);
 
     char fullLibPath[512];
     snprintf(fullLibPath, sizeof(fullLibPath), "%s/libmelonds.so", nativePath);
 
-    coreHandle = dlopen("libmelonds.so", RTLD_NOW);
+    coreHandle = dlopen("libmelonds.so", RTLD_NOW | RTLD_GLOBAL);
     if (!coreHandle) {
-        coreHandle = dlopen(fullLibPath, RTLD_NOW);
+        coreHandle = dlopen(fullLibPath, RTLD_NOW | RTLD_GLOBAL);
     }
 
     if (!coreHandle) {
-        LOGE("Error al cargar libmelonds.so: %s", dlerror());
+        LOGE("Error abriendo libmelonds.so: %s", dlerror());
         env->ReleaseStringUTFChars(system_path, nativePath);
         return JNI_FALSE;
     }
@@ -238,32 +248,49 @@ Java_com_ejemplo_emulador_NativeBridge_nativeLoadRom(JNIEnv *env, jobject thiz, 
     FILE *f = fopen(path, "rb");
     if (!f) {
         env->ReleaseStringUTFChars(rom_path, path);
-        return env->NewStringUTF("Error: No se pudo abrir la ROM");
+        return env->NewStringUTF("Error: No se pudo leer el archivo de la ROM");
     }
 
     fseek(f, 0, SEEK_END);
     size_t size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    void *romData = malloc(size);
-    fread(romData, 1, size, f);
+    if (size == 0) {
+        fclose(f);
+        env->ReleaseStringUTFChars(rom_path, path);
+        return env->NewStringUTF("Error: Archivo de ROM vacío");
+    }
+
+    pthread_mutex_lock(&coreMutex);
+    isGameLoaded = false;
+
+    if (persistedRomData) {
+        free(persistedRomData);
+        persistedRomData = nullptr;
+    }
+
+    persistedRomData = malloc(size);
+    fread(persistedRomData, 1, size, f);
     fclose(f);
 
     struct retro_game_info gameInfo;
     gameInfo.path = path;
-    gameInfo.data = romData;
+    gameInfo.data = persistedRomData;
     gameInfo.size = size;
     gameInfo.meta = nullptr;
 
     bool success = core_load_game(&gameInfo);
-    free(romData);
+    if (success) {
+        isGameLoaded = true;
+    }
+    pthread_mutex_unlock(&coreMutex);
+
     env->ReleaseStringUTFChars(rom_path, path);
 
     if (success) {
-        isGameLoaded = true;
-        return env->NewStringUTF("melonDS: ¡Juego cargado y listo!");
+        return env->NewStringUTF("¡Juego cargado correctamente!");
     } else {
-        return env->NewStringUTF("Error: melonDS no pudo montar la ROM");
+        return env->NewStringUTF("Error: melonDS rechazó la ROM");
     }
 }
 
@@ -277,8 +304,11 @@ Java_com_ejemplo_emulador_NativeBridge_nativeRunFrame(
     touchCoordY = touch_y;
     touchIsActive = is_touching;
 
-    if (isGameLoaded && core_run) {
+    if (!isGameLoaded || !core_run) return;
+
+    if (pthread_mutex_trylock(&coreMutex) == 0) {
         core_run();
+        pthread_mutex_unlock(&coreMutex);
     }
 }
 
@@ -301,7 +331,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeGetAudioSamples(
 
 JNIEXPORT jstring JNICALL
 Java_com_ejemplo_emulador_NativeBridge_nativeGetCpuStatus(JNIEnv *env, jobject thiz) {
-    return env->NewStringUTF(isGameLoaded ? "melonDS: Activo a 60 FPS" : "En espera de ROM");
+    return env->NewStringUTF(isGameLoaded ? "Activo" : "Espera");
 }
 
 }
