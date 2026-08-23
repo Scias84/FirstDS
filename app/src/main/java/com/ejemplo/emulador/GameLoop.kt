@@ -3,8 +3,8 @@ package com.ejemplo.emulador
 import android.opengl.GLSurfaceView
 
 class GameLoop(
-    private val glTop: GLSurfaceView,
-    private val glBottom: GLSurfaceView,
+    private var glTop: GLSurfaceView,
+    private var glBottom: GLSurfaceView,
     private val audioEngine: AudioEngine,
     private val getKeyMask: () -> Int,
     private val getTouchState: () -> TouchDigitizer
@@ -15,8 +15,13 @@ class GameLoop(
         private set
 
     private var gameThread: Thread? = null
-    private val targetFrameTimeMs = 1000L / 60L
+    private val targetFrameNs = 1_000_000_000L / 60L // 16.666 ms exactos
     private val audioPullBuffer = ShortArray(2048)
+
+    fun updateSurfaces(top: GLSurfaceView, bottom: GLSurfaceView) {
+        this.glTop = top
+        this.glBottom = bottom
+    }
 
     fun start() {
         if (isRunning) return
@@ -36,9 +41,9 @@ class GameLoop(
     }
 
     override fun run() {
-        while (isRunning) {
-            val startTime = System.currentTimeMillis()
+        var nextFrameTime = System.nanoTime()
 
+        while (isRunning) {
             val keys = getKeyMask()
             val touch = getTouchState()
 
@@ -52,14 +57,24 @@ class GameLoop(
             glTop.requestRender()
             glBottom.requestRender()
 
-            val elapsed = System.currentTimeMillis() - startTime
-            val sleepTime = targetFrameTimeMs - elapsed
+            nextFrameTime += targetFrameNs
+            val sleepNs = nextFrameTime - System.nanoTime()
 
-            if (sleepTime > 0) {
-                try {
-                    Thread.sleep(sleepTime)
-                } catch (_: InterruptedException) {
-                    break
+            if (sleepNs > 0) {
+                val sleepMs = sleepNs / 1_000_000L
+                if (sleepMs > 2) {
+                    try {
+                        Thread.sleep(sleepMs - 1)
+                    } catch (_: InterruptedException) {
+                        break
+                    }
+                }
+                while (System.nanoTime() < nextFrameTime) {
+                    // Espera activa precisa para clavar 60.0 FPS
+                }
+            } else {
+                if (sleepNs < -targetFrameNs * 4) {
+                    nextFrameTime = System.nanoTime()
                 }
             }
         }
