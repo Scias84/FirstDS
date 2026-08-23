@@ -15,9 +15,11 @@
 #define BUFFER_SIZE (DS_WIDTH * DS_HEIGHT * 4)
 #define AUDIO_BUFFER_SIZE 4096
 
+// Búferes de video para OpenGL
 static uint32_t topScreenBuffer[DS_WIDTH * DS_HEIGHT];
 static uint32_t bottomScreenBuffer[DS_WIDTH * DS_HEIGHT];
 
+// Búfer de audio PCM
 static int16_t audioRingBuffer[AUDIO_BUFFER_SIZE];
 static size_t audioWritePos = 0;
 
@@ -28,6 +30,9 @@ static bool touchIsActive = false;
 static bool isCoreLoaded = false;
 static bool isGameLoaded = false;
 
+static int currentPixelFormat = 1; // 1 = XRGB8888, 2 = RGB565
+static char systemDirectory[512] = {0};
+
 struct retro_game_info {
     const char *path;
     const void *data;
@@ -35,38 +40,100 @@ struct retro_game_info {
     const char *meta;
 };
 
-static void (*core_init)(void) = nullptr;
-static void (*core_deinit)(void) = nullptr;
-static bool (*core_load_game)(const struct retro_game_info *game) = nullptr;
-static void (*core_unload_game)(void) = nullptr;
-static void (*core_run)(void) = nullptr;
-static void (*core_set_environment)(bool (*)(unsigned, void*)) = nullptr;
-static void (*core_set_video_refresh)(void (*)(const void*, unsigned, unsigned, size_t)) = nullptr;
-static void (*core_set_audio_sample_batch)(size_t (*)(const int16_t*, size_t)) = nullptr;
-static void (*core_set_input_poll)(void (*)(void)) = nullptr;
-static void (*core_set_input_state)(int16_t (*)(unsigned, unsigned, unsigned, unsigned)) = nullptr;
+// --- DEFINICIONES DE TIPOS LIBRETRO ---
+typedef bool (*retro_environment_t)(unsigned cmd, void *data);
+typedef void (*retro_video_refresh_t)(const void *data, unsigned width, unsigned height, size_t pitch);
+typedef void (*retro_audio_sample_t)(int16_t left, int16_t right);
+typedef size_t (*retro_audio_sample_batch_t)(const int16_t *data, size_t frames);
+typedef void (*retro_input_poll_t)(void);
+typedef int16_t (*retro_input_state_t)(unsigned port, unsigned device, unsigned index, unsigned id);
+
+typedef void (*fn_retro_init)(void);
+typedef void (*fn_retro_deinit)(void);
+typedef bool (*fn_retro_load_game)(const struct retro_game_info *game);
+typedef void (*fn_retro_unload_game)(void);
+typedef void (*fn_retro_run)(void);
+typedef void (*fn_retro_set_environment)(retro_environment_t);
+typedef void (*fn_retro_set_video_refresh)(retro_video_refresh_t);
+typedef void (*fn_retro_set_audio_sample_batch)(retro_audio_sample_batch_t);
+typedef void (*fn_retro_set_input_poll)(retro_input_poll_t);
+typedef void (*fn_retro_set_input_state)(retro_input_state_t);
+
+static fn_retro_init core_init = nullptr;
+static fn_retro_deinit core_deinit = nullptr;
+static fn_retro_load_game core_load_game = nullptr;
+static fn_retro_unload_game core_unload_game = nullptr;
+static fn_retro_run core_run = nullptr;
+static fn_retro_set_environment core_set_environment = nullptr;
+static fn_retro_set_video_refresh core_set_video_refresh = nullptr;
+static fn_retro_set_audio_sample_batch core_set_audio_sample_batch = nullptr;
+static fn_retro_set_input_poll core_set_input_poll = nullptr;
+static fn_retro_set_input_state core_set_input_state = nullptr;
 
 static void *coreHandle = nullptr;
 
+// --- CALLBACKS LIBRETRO ---
+
 static bool cb_environment(unsigned cmd, void *data) {
-    return true;
+    switch (cmd) {
+        case 10: // RETRO_ENVIRONMENT_SET_PIXEL_FORMAT
+            if (data) {
+                currentPixelFormat = *(const int*)data;
+                return true;
+            }
+            return false;
+        case 9:  // RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY
+        case 31: // RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY
+            if (data && systemDirectory[0] != 0) {
+                *(const char**)data = systemDirectory;
+                return true;
+            }
+            return false;
+        default:
+            return true;
+    }
 }
 
 static void cb_video_refresh(const void *data, unsigned width, unsigned height, size_t pitch) {
     if (!data) return;
 
-    const uint32_t *src = (const uint32_t *)data;
-    size_t stride = pitch / sizeof(uint32_t);
+    if (currentPixelFormat == 1) { // 32 bits (XRGB8888)
+        const uint32_t *src = (const uint32_t *)data;
+        size_t stride = pitch / sizeof(uint32_t);
 
-    for (unsigned y = 0; y < DS_HEIGHT && y < height; y++) {
-        for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
-            topScreenBuffer[y * DS_WIDTH + x] = src[y * stride + x] | 0xFF000000;
+        for (unsigned y = 0; y < DS_HEIGHT && y < height; y++) {
+            for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
+                topScreenBuffer[y * DS_WIDTH + x] = src[y * stride + x] | 0xFF000000;
+            }
         }
-    }
 
-    for (unsigned y = 0; y < DS_HEIGHT && (y + DS_HEIGHT) < height; y++) {
-        for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
-            bottomScreenBuffer[y * DS_WIDTH + x] = src[(y + DS_HEIGHT) * stride + x] | 0xFF000000;
+        for (unsigned y = 0; y < DS_HEIGHT && (y + DS_HEIGHT) < height; y++) {
+            for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
+                bottomScreenBuffer[y * DS_WIDTH + x] = src[(y + DS_HEIGHT) * stride + x] | 0xFF000000;
+            }
+        }
+    } else { // 16 bits (RGB565 / 0RGB1555)
+        const uint16_t *src = (const uint16_t *)data;
+        size_t stride = pitch / sizeof(uint16_t);
+
+        for (unsigned y = 0; y < DS_HEIGHT && y < height; y++) {
+            for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
+                uint16_t c = src[y * stride + x];
+                uint8_t r = ((c >> 11) & 0x1F) << 3;
+                uint8_t g = ((c >> 5) & 0x3F) << 2;
+                uint8_t b = (c & 0x1F) << 3;
+                topScreenBuffer[y * DS_WIDTH + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
+        }
+
+        for (unsigned y = 0; y < DS_HEIGHT && (y + DS_HEIGHT) < height; y++) {
+            for (unsigned x = 0; x < DS_WIDTH && x < width; x++) {
+                uint16_t c = src[(y + DS_HEIGHT) * stride + x];
+                uint8_t r = ((c >> 11) & 0x1F) << 3;
+                uint8_t g = ((c >> 5) & 0x3F) << 2;
+                uint8_t b = (c & 0x1F) << 3;
+                bottomScreenBuffer[y * DS_WIDTH + x] = 0xFF000000 | (b << 16) | (g << 8) | r;
+            }
         }
     }
 }
@@ -112,36 +179,40 @@ static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, un
     return 0;
 }
 
+// --- PUENTE JNI ---
+
 extern "C" {
 
 JNIEXPORT jboolean JNICALL
 Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jstring system_path) {
     const char *nativePath = env->GetStringUTFChars(system_path, nullptr);
 
-    char libPath[512];
-    snprintf(libPath, sizeof(libPath), "%s/../lib/libmelonds.so", nativePath);
+    snprintf(systemDirectory, sizeof(systemDirectory), "%s", nativePath);
+
+    char fullLibPath[512];
+    snprintf(fullLibPath, sizeof(fullLibPath), "%s/libmelonds.so", nativePath);
 
     coreHandle = dlopen("libmelonds.so", RTLD_NOW);
     if (!coreHandle) {
-        coreHandle = dlopen(libPath, RTLD_NOW);
+        coreHandle = dlopen(fullLibPath, RTLD_NOW);
     }
 
     if (!coreHandle) {
-        LOGE("No se pudo cargar libmelonds.so: %s", dlerror());
+        LOGE("Error al cargar libmelonds.so: %s", dlerror());
         env->ReleaseStringUTFChars(system_path, nativePath);
         return JNI_FALSE;
     }
 
-    core_init = (void (*)(void))dlsym(coreHandle, "retro_init");
-    core_deinit = (void (*)(void))dlsym(coreHandle, "retro_deinit");
-    core_load_game = (bool (*)(const struct retro_game_info*))dlsym(coreHandle, "retro_load_game");
-    core_unload_game = (void (*)(void))dlsym(coreHandle, "retro_unload_game");
-    core_run = (void (*)(void))dlsym(coreHandle, "retro_run");
-    core_set_environment = (void (*)(bool (*)(unsigned, void*)))dlsym(coreHandle, "retro_set_environment");
-    core_set_video_refresh = (void (*)(void (*)(const void*, unsigned, unsigned, size_t)))dlsym(coreHandle, "retro_set_video_refresh");
-    core_set_audio_sample_batch = (size_t (*)(size_t (*)(const int16_t*, size_t)))dlsym(coreHandle, "retro_set_audio_sample_batch");
-    core_set_input_poll = (void (*)(void (*)(void)))dlsym(coreHandle, "retro_set_input_poll");
-    core_set_input_state = (void (*)(int16_t (*)(unsigned, unsigned, unsigned, unsigned)))dlsym(coreHandle, "retro_set_input_state");
+    core_init = (fn_retro_init)dlsym(coreHandle, "retro_init");
+    core_deinit = (fn_retro_deinit)dlsym(coreHandle, "retro_deinit");
+    core_load_game = (fn_retro_load_game)dlsym(coreHandle, "retro_load_game");
+    core_unload_game = (fn_retro_unload_game)dlsym(coreHandle, "retro_unload_game");
+    core_run = (fn_retro_run)dlsym(coreHandle, "retro_run");
+    core_set_environment = (fn_retro_set_environment)dlsym(coreHandle, "retro_set_environment");
+    core_set_video_refresh = (fn_retro_set_video_refresh)dlsym(coreHandle, "retro_set_video_refresh");
+    core_set_audio_sample_batch = (fn_retro_set_audio_sample_batch)dlsym(coreHandle, "retro_set_audio_sample_batch");
+    core_set_input_poll = (fn_retro_set_input_poll)dlsym(coreHandle, "retro_set_input_poll");
+    core_set_input_state = (fn_retro_set_input_state)dlsym(coreHandle, "retro_set_input_state");
 
     if (core_set_environment) core_set_environment(cb_environment);
     if (core_set_video_refresh) core_set_video_refresh(cb_video_refresh);
