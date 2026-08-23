@@ -8,19 +8,35 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import java.io.InputStream
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var screenTop: TextView
     private lateinit var screenBottom: TextView
 
+    // Cargar la librería nativa de C++ al iniciar la app
+    companion object {
+        init {
+            System.loadLibrary("emulatorkernel")
+        }
+    }
+
+    // Declaración del método nativo escrito en C++
+    external fun initEmulatorCore(romPath: String): String
+
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
-                parseNdsHeader(uri)
+                val path = uri.path ?: "rom_virtual.nds"
+                
+                // Llamamos al núcleo en C++ pasando la ruta del juego
+                val kernelResponse = initEmulatorCore(path)
+                
+                screenTop.text = "¡Juego Enlazado al Motor C++!"
+                screenBottom.text = kernelResponse
+                Toast.makeText(this, "Motor NDK activado con éxito", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -32,7 +48,6 @@ class MainActivity : AppCompatActivity() {
         screenTop = findViewById(R.id.screen_top)
         screenBottom = findViewById(R.id.screen_bottom)
 
-        // Tocar pantalla superior para abrir ROMs
         screenTop.setOnClickListener {
             openRomSelector()
         }
@@ -46,32 +61,6 @@ class MainActivity : AppCompatActivity() {
             type = "*/*"
         }
         filePickerLauncher.launch(intent)
-    }
-
-    // Lee los primeros 16 bytes de la cabecera del archivo .nds
-    private fun parseNdsHeader(uri: Uri) {
-        try {
-            val inputStream: InputStream? = contentResolver.openInputStream(uri)
-            val headerBuffer = ByteArray(16) // Los primeros 16 bytes contienen el Título y el ID
-            inputStream?.use { stream ->
-                stream.read(headerBuffer)
-            }
-
-            // Bytes 0x00 a 0x0B (12 bytes): Título interno del juego
-            val gameTitle = String(headerBuffer, 0, 12, Charsets.US_ASCII).trim { it <= ' ' }
-            
-            // Bytes 0x0C a 0x0F (4 bytes): Código/ID del juego (ej: IRBO)
-            val gameCode = String(headerBuffer, 12, 4, Charsets.US_ASCII).trim { it <= ' ' }
-
-            // Mostrar la información analizada en las pantallas
-            screenTop.text = "Título: $gameTitle"
-            screenBottom.text = "ID del Cartucho: $gameCode\n(ROM Cargada Correctamente)"
-            
-            Toast.makeText(this, "¡ROM analizada con éxito!", Toast.LENGTH_SHORT).show()
-
-        } catch (e: Exception) {
-            Toast.makeText(this, "Error al leer la ROM: ${e.message}", Toast.LENGTH_LONG).show()
-        }
     }
 
     private fun setupControllerButtons() {
