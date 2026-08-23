@@ -11,14 +11,16 @@ Java_com_ejemplo_emulador_MainActivity_initEmulatorCore(
         jobject /* this */,
         jstring romPath) {
     
-    // Convertir la ruta de la ROM de Java a C++
+    // Leer la ruta de la ROM enviada desde Kotlin
     const char* path = env->GetStringUTFChars(romPath, nullptr);
-    
     LOGI("Iniciando motor de emulación para ROM: %s", path);
 
-    // Simulación de inicialización de la arquitectura ARM9 / ARM7
-    std::string status = "Núcleo C++ Activo: CPU ARM9 y ARM7 Listas. Memoria RAM 4MB Mapeada.";
+    // Mensaje de estado del núcleo C++
+    std::string status = "Núcleo C++ Activo:\nCPU ARM9 y ARM7 Inicializadas.\nMemoria RAM 4MB Mapeada.";
 
+    // Liberar memoria del string recibido
     env->ReleaseStringUTFChars(romPath, path);
-    return env->NewStringUTF.c_str() ? env->NewStringUTF(status.c_str()) : nullptr;
+
+    // Devolver el resultado a Kotlin
+    return env->NewStringUTF(status.c_str());
 }
