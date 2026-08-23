@@ -15,8 +15,7 @@
 #define DS_HEIGHT 192
 #define BUFFER_SIZE (DS_WIDTH * DS_HEIGHT * 4)
 
-// Buffer circular de audio amplio para evitar cortes
-#define AUDIO_RING_SIZE 32768
+#define AUDIO_RING_SIZE 65536
 
 static uint32_t topScreenBuffer[DS_WIDTH * DS_HEIGHT];
 static uint32_t bottomScreenBuffer[DS_WIDTH * DS_HEIGHT];
