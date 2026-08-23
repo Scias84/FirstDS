@@ -5,59 +5,49 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <!-- PANTALLAS DE NINTENDO DS (Ocupan el 42% superior para dejar espacio libre abajo) -->
+    <!-- CONTENEDOR DE PANTALLAS DS -->
     <LinearLayout
         android:id="@+id/screens_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:orientation="vertical"
-        android:background="#000000"
+        android:gravity="center"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/controls_guide"
+        app:layout_constraintBottom_toTopOf="@id/controls_guideline"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:padding="4dp">
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/screen_top"
+        <!-- Pantalla Superior OpenGL (Aspect Ratio 4:3) -->
+        <android.opengl.GLSurfaceView
+            android:id="@+id/gl_screen_top"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginBottom="2dp"
-            android:background="#0A0A0A"
-            android:gravity="center"
-            android:text="[ Pantalla Superior ]"
-            android:textColor="#00FF66"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:layout_margin="2dp" />
 
-        <TextView
-            android:id="@+id/screen_bottom"
+        <!-- Pantalla Táctil OpenGL (Aspect Ratio 4:3) -->
+        <android.opengl.GLSurfaceView
+            android:id="@+id/gl_screen_bottom"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:background="#121212"
-            android:gravity="center"
-            android:text="[ Pantalla Táctil ]"
-            android:textColor="#00E5FF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:layout_margin="2dp" />
     </LinearLayout>
 
     <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/controls_guide"
+        android:id="@+id/controls_guideline"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        app:layout_constraintGuide_percent="0.42" />
+        app:layout_constraintGuide_percent="0.55" />
 
-    <!-- GATILLOS L Y R (Separados en las esquinas superiores del área de control) -->
+    <!-- GATILLOS L Y R -->
     <TextView
         android:id="@+id/btn_l"
-        android:layout_width="100dp"
-        android:layout_height="44dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="6dp"
+        android:layout_width="95dp"
+        android:layout_height="38dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
         android:background="@drawable/btn_pill"
         android:gravity="center"
         android:text="L"
@@ -65,14 +55,14 @@
         android:textSize="16sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/controls_guide" />
+        app:layout_constraintTop_toBottomOf="@id/controls_guideline" />
 
     <TextView
         android:id="@+id/btn_r"
-        android:layout_width="100dp"
-        android:layout_height="44dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginTop="6dp"
+        android:layout_width="95dp"
+        android:layout_height="38dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
         android:background="@drawable/btn_pill"
         android:gravity="center"
         android:text="R"
@@ -80,15 +70,15 @@
         android:textSize="16sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/controls_guide" />
+        app:layout_constraintTop_toBottomOf="@id/controls_guideline" />
 
-    <!-- CRUCETA D-PAD (Más grande y separada a la izquierda) -->
+    <!-- CRUCETA D-PAD -->
     <RelativeLayout
         android:id="@+id/dpad_container"
-        android:layout_width="180dp"
-        android:layout_height="180dp"
-        android:layout_marginStart="8dp"
-        android:layout_marginBottom="8dp"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
@@ -100,52 +90,52 @@
 
         <View
             android:id="@+id/btn_up"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:layout_centerHorizontal="true"
             android:layout_alignParentTop="true" />
 
         <View
             android:id="@+id/btn_down"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:layout_centerHorizontal="true"
             android:layout_alignParentBottom="true" />
 
         <View
             android:id="@+id/btn_left"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:layout_centerVertical="true"
             android:layout_alignParentStart="true" />
 
         <View
             android:id="@+id/btn_right"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
             android:layout_centerVertical="true"
             android:layout_alignParentEnd="true" />
     </RelativeLayout>
 
-    <!-- ROMBO DE BOTONES ABXY (Más amplio y separado a la derecha) -->
+    <!-- BOTONERA ABXY -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/abxy_container"
-        android:layout_width="180dp"
-        android:layout_height="180dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="8dp"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:id="@+id/btn_x"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/btn_round"
             android:gravity="center"
             android:text="X"
             android:textColor="#3388FF"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -153,13 +143,13 @@
 
         <TextView
             android:id="@+id/btn_b"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/btn_round"
             android:gravity="center"
             android:text="B"
             android:textColor="#FFDD33"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -167,13 +157,13 @@
 
         <TextView
             android:id="@+id/btn_y"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/btn_round"
             android:gravity="center"
             android:text="Y"
             android:textColor="#33DD66"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -181,51 +171,51 @@
 
         <TextView
             android:id="@+id/btn_a"
-            android:layout_width="55dp"
-            android:layout_height="55dp"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
             android:background="@drawable/btn_round"
             android:gravity="center"
             android:text="A"
             android:textColor="#FF4444"
-            android:textSize="22sp"
+            android:textSize="18sp"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- START Y SELECT (Ubicados cómodamente en el centro inferior) -->
+    <!-- START Y SELECT -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="12dp"
+        android:layout_marginBottom="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/dpad_container"
-        app:layout_constraintEnd_toStartOf="@id/abxy_container">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <TextView
             android:id="@+id/btn_select"
             android:layout_width="65dp"
-            android:layout_height="30dp"
-            android:layout_marginEnd="6dp"
+            android:layout_height="26dp"
+            android:layout_marginEnd="8dp"
             android:background="@drawable/btn_pill"
             android:gravity="center"
             android:text="SELECT"
             android:textColor="#CCCCCC"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/btn_start"
             android:layout_width="65dp"
-            android:layout_height="30dp"
-            android:layout_marginStart="6dp"
+            android:layout_height="26dp"
+            android:layout_marginStart="8dp"
             android:background="@drawable/btn_pill"
             android:gravity="center"
             android:text="START"
             android:textColor="#CCCCCC"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold" />
     </LinearLayout>
 
