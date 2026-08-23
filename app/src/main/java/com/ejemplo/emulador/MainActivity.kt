@@ -47,10 +47,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 1. Inicializar motor nativo C++
         NativeBridge.nativeInit(filesDir.absolutePath)
 
-        // 2. Configurar vistas de OpenGL ES
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
 
@@ -62,7 +60,6 @@ class MainActivity : AppCompatActivity() {
         glScreenBottom.setRenderer(EmulatorRenderer(isTopScreen = false))
         glScreenBottom.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
 
-        // 3. Crear el hilo de ejecución a 60 FPS
         gameLoop = GameLoop(
             glTop = glScreenTop,
             glBottom = glScreenBottom,
@@ -70,17 +67,14 @@ class MainActivity : AppCompatActivity() {
             getTouchState = { touchDigitizer }
         )
 
-        // Tocar pantalla superior abre el selector de ROMs
         glScreenTop.setOnClickListener {
             romPickerLauncher.launch(arrayOf("*/*"))
         }
 
-        // Tocar pantalla inferior pasa coordenadas táctiles NDS
         glScreenBottom.setOnTouchListener { v, event ->
             touchDigitizer.handleTouchEvent(v, event)
         }
 
-        // 4. Configuración de controles
         setupButton(R.id.btn_a, KEY_A)
         setupButton(R.id.btn_b, KEY_B)
         setupButton(R.id.btn_x, KEY_X)
@@ -112,15 +106,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun cargarRom(uri: Uri) {
         try {
-            Toast.makeText(this, "Cargando juego...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Leyendo cartucho NDS...", Toast.LENGTH_SHORT).show()
             val tempRom = File(cacheDir, "game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRom).use { output ->
                     input.copyTo(output)
                 }
             }
-            NativeBridge.nativeLoadRom(tempRom.absolutePath)
-            Toast.makeText(this, "¡ROM montada! Ejecutando motor...", Toast.LENGTH_SHORT).show()
+
+            val romResult = NativeBridge.nativeLoadRom(tempRom.absolutePath)
+            Toast.makeText(this, romResult, Toast.LENGTH_LONG).show()
+
             gameLoop?.start()
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
