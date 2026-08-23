@@ -15,8 +15,6 @@ class MainActivity : AppCompatActivity() {
             R.id.btn_b to "B",
             R.id.btn_x to "X",
             R.id.btn_y to "Y",
-            R.id.btn_l to "L",
-            R.id.btn_r to "R",
             R.id.btn_up to "Arriba",
             R.id.btn_down to "Abajo",
             R.id.btn_left to "Izquierda",
