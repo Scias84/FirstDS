@@ -141,7 +141,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jst
     core_set_video_refresh = (void (*)(void (*)(const void*, unsigned, unsigned, size_t)))dlsym(coreHandle, "retro_set_video_refresh");
     core_set_audio_sample_batch = (size_t (*)(size_t (*)(const int16_t*, size_t)))dlsym(coreHandle, "retro_set_audio_sample_batch");
     core_set_input_poll = (void (*)(void (*)(void)))dlsym(coreHandle, "retro_set_input_poll");
-    core_set_input_state = (int16_t (*)(int16_t (*)(unsigned, unsigned, unsigned, unsigned)))dlsym(coreHandle, "retro_set_input_state");
+    core_set_input_state = (void (*)(int16_t (*)(unsigned, unsigned, unsigned, unsigned)))dlsym(coreHandle, "retro_set_input_state");
 
     if (core_set_environment) core_set_environment(cb_environment);
     if (core_set_video_refresh) core_set_video_refresh(cb_video_refresh);
