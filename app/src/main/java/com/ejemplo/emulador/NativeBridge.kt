@@ -4,6 +4,10 @@ import java.nio.ByteBuffer
 
 object NativeBridge {
     init {
+        try {
+            System.loadLibrary("melonds")
+        } catch (_: Throwable) {
+        }
         System.loadLibrary("emulatorkernel")
     }
 
