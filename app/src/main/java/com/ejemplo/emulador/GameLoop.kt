@@ -5,6 +5,7 @@ import android.opengl.GLSurfaceView
 class GameLoop(
     private val glTop: GLSurfaceView,
     private val glBottom: GLSurfaceView,
+    private val audioEngine: AudioEngine,
     private val getKeyMask: () -> Int,
     private val getTouchState: () -> TouchDigitizer
 ) : Runnable {
@@ -15,6 +16,8 @@ class GameLoop(
 
     private var gameThread: Thread? = null
     private val targetFrameTimeMs = 1000L / 60L
+    private val audioSamplesPerFrame = 735 * 2 // 1470 shorts por cuadro
+    private val audioFrameBuffer = ShortArray(audioSamplesPerFrame)
 
     fun start() {
         if (isRunning) return
@@ -40,13 +43,18 @@ class GameLoop(
             val keys = getKeyMask()
             val touch = getTouchState()
 
-            // 1. Ejecutar el fotograma en C++
+            // 1. Ejecutar ciclo de CPU, GPU y SPU
             NativeBridge.nativeRunFrame(keys, touch.dsX, touch.dsY, touch.isTouching)
 
-            // 2. Renderizar fotograma en GPU
+            // 2. Extraer y reproducir audio en tiempo real
+            NativeBridge.nativeGetAudioSamples(audioFrameBuffer, audioSamplesPerFrame)
+            audioEngine.writeAudio(audioFrameBuffer, 0, audioSamplesPerFrame)
+
+            // 3. Renderizar imagen en pantalla
             glTop.requestRender()
             glBottom.requestRender()
 
+            // 4. Control de sincronización a 60 FPS
             val elapsed = System.currentTimeMillis() - startTime
             val sleepTime = targetFrameTimeMs - elapsed
 
