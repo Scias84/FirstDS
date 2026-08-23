@@ -16,8 +16,7 @@ class GameLoop(
 
     private var gameThread: Thread? = null
     private val targetFrameTimeMs = 1000L / 60L
-    private val audioSamplesPerFrame = 735 * 2 // 1470 shorts por cuadro
-    private val audioFrameBuffer = ShortArray(audioSamplesPerFrame)
+    private val audioPullBuffer = ShortArray(2048)
 
     fun start() {
         if (isRunning) return
@@ -33,7 +32,7 @@ class GameLoop(
         try {
             gameThread?.join(500)
             gameThread = null
-        } catch (_: InterruptedException) { }
+        } catch (_: InterruptedException) {}
     }
 
     override fun run() {
@@ -43,18 +42,16 @@ class GameLoop(
             val keys = getKeyMask()
             val touch = getTouchState()
 
-            // 1. Ejecutar ciclo de CPU, GPU y SPU
             NativeBridge.nativeRunFrame(keys, touch.dsX, touch.dsY, touch.isTouching)
 
-            // 2. Extraer y reproducir audio en tiempo real
-            NativeBridge.nativeGetAudioSamples(audioFrameBuffer, audioSamplesPerFrame)
-            audioEngine.writeAudio(audioFrameBuffer, 0, audioSamplesPerFrame)
+            val samplesRead = NativeBridge.nativeGetAudioSamples(audioPullBuffer, audioPullBuffer.size)
+            if (samplesRead > 0) {
+                audioEngine.writeAudio(audioPullBuffer, 0, samplesRead)
+            }
 
-            // 3. Renderizar imagen en pantalla
             glTop.requestRender()
             glBottom.requestRender()
 
-            // 4. Control de sincronización a 60 FPS
             val elapsed = System.currentTimeMillis() - startTime
             val sleepTime = targetFrameTimeMs - elapsed
 
