@@ -59,8 +59,9 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences("FirstDS_Prefs", MODE_PRIVATE)
 
-        val nativeDir = applicationInfo.nativeLibraryDir
-        NativeBridge.nativeInit(nativeDir)
+        val systemDir = filesDir.absolutePath
+        val libDir = applicationInfo.nativeLibraryDir
+        NativeBridge.nativeInit(systemDir, libDir)
 
         bindViewsAndSurfaces()
     }
