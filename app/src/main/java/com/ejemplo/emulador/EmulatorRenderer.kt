@@ -45,27 +45,29 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
 
     private var program: Int = 0
     private var textureId: Int = 0
-    private lateinit var vertexBuffer: FloatBuffer
-    private lateinit var texBuffer: FloatBuffer
+
+    // Inicialización directa en memoria (evita el cierre forzado)
+    private val vertexBuffer: FloatBuffer = ByteBuffer.allocateDirect(squareCoords.size * 4)
+        .order(ByteOrder.nativeOrder())
+        .asFloatBuffer()
+        .apply {
+            put(squareCoords)
+            position(0)
+        }
+
+    private val texBuffer: FloatBuffer = ByteBuffer.allocateDirect(texCoords.size * 4)
+        .order(ByteOrder.nativeOrder())
+        .asFloatBuffer()
+        .apply {
+            put(texCoords)
+            position(0)
+        }
+
+    @Volatile
+    private var isSurfaceReady = false
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
-
-        vertexBuffer = ByteBuffer.allocateDirect(squareCoords.size * 4)
-            .order(ByteOrder.nativeOrder())
-            .asFloatBuffer()
-            .apply {
-                put(squareCoords)
-                position(0)
-            }
-
-        texBuffer = ByteBuffer.allocateDirect(texCoords.size * 4)
-            .order(ByteOrder.nativeOrder())
-            .asFloatBuffer()
-            .apply {
-                put(texCoords)
-                position(0)
-            }
 
         val vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
         val fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
@@ -85,6 +87,8 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+
+        isSurfaceReady = true
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -92,15 +96,18 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
     }
 
     override fun onDrawFrame(gl: GL10?) {
-        // Bloqueo de seguridad: Evitar comandos GL antes de compilar shaders
-        if (program == 0) return
+        if (!isSurfaceReady || program == 0 || textureId == 0) return
 
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
-        val buffer: ByteBuffer? = if (isTopScreen) {
-            NativeBridge.nativeGetTopBuffer()
-        } else {
-            NativeBridge.nativeGetBottomBuffer()
+        val buffer: ByteBuffer? = try {
+            if (isTopScreen) {
+                NativeBridge.nativeGetTopBuffer()
+            } else {
+                NativeBridge.nativeGetBottomBuffer()
+            }
+        } catch (_: Throwable) {
+            null
         }
 
         if (buffer != null) {
