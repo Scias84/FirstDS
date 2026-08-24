@@ -73,7 +73,7 @@
         </LinearLayout>
     </RelativeLayout>
 
-    <!-- 3. CONFIGURAR OPCIONES -->
+    <!-- 3. CONFIGURAR OPCIONES (LISTA PRINCIPAL) -->
     <LinearLayout
         android:id="@+id/layout_options_menu"
         android:layout_width="match_parent"
@@ -127,7 +127,6 @@
 
         <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-
                 <LinearLayout android:id="@+id/opt_video_backend" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Motor gráfico (Backend)" android:textColor="#2B2638" android:textSize="16sp" android:textStyle="bold" />
                     <TextView android:id="@+id/txt_backend_selected" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OpenGL ES 3.2" android:textColor="#4F357E" android:textSize="13sp" />
@@ -155,6 +154,55 @@
                 <LinearLayout android:id="@+id/opt_video_frameskip" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Omisión de fotogramas" android:textColor="#2B2638" android:textSize="16sp" android:textStyle="bold" />
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Automático" android:textColor="#4F357E" android:textSize="13sp" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1CFDB" />
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+    <!-- 5. AJUSTES DE MANDO DE JUEGO VIRTUAL -->
+    <LinearLayout
+        android:id="@+id/layout_virtual_pad_settings"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F0EFF5"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="52dp" android:background="#4F357E" android:gravity="center_vertical" android:paddingStart="12dp" android:paddingEnd="12dp">
+            <TextView android:id="@+id/btn_vpad_back" android:layout_width="40dp" android:layout_height="40dp" android:gravity="center" android:text="←" android:textColor="#FFF" android:textSize="24sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="Mando de juego virtual" android:textColor="#FFF" android:textSize="18sp" android:textStyle="bold" />
+        </LinearLayout>
+
+        <ScrollView android:layout_width="match_parent" android:layout_height="match_parent">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+                <LinearLayout android:id="@+id/opt_vpad_opacity" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Opacidad del mando" android:textColor="#2B2638" android:textSize="16sp" android:textStyle="bold" />
+                    <TextView android:id="@+id/txt_vpad_opacity_val" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="70% (Semivisible)" android:textColor="#4F357E" android:textSize="13sp" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1CFDB" />
+
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_toStartOf="@+id/switch_vpad_vibration" android:layout_marginEnd="12dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Vibración al pulsar botones" android:textColor="#2B2638" android:textSize="16sp" android:textStyle="bold" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Respuesta háptica al tocar la cruceta o botones" android:textColor="#787588" android:textSize="12sp" />
+                    </LinearLayout>
+                    <Switch android:id="@+id/switch_vpad_vibration" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:checked="true" />
+                </RelativeLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1CFDB" />
+
+                <LinearLayout android:id="@+id/opt_vpad_style" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Estilo de botones virtuales" android:textColor="#2B2638" android:textSize="16sp" android:textStyle="bold" />
+                    <TextView android:id="@+id/txt_vpad_style_val" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Super Nintendo (Morado / Lavanda)" android:textColor="#4F357E" android:textSize="13sp" />
+                </LinearLayout>
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1CFDB" />
+
+                <LinearLayout android:id="@+id/opt_vpad_layout_edit" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Editar disposición y tamaño de controles" android:textColor="#2B2638" android:textSize="16sp" android:textStyle="bold" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mueve y redimensiona los botones en pantalla" android:textColor="#787588" android:textSize="12sp" />
                 </LinearLayout>
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#D1CFDB" />
 
