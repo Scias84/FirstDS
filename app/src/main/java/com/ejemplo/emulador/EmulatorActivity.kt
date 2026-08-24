@@ -49,9 +49,8 @@ class EmulatorActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val systemDir = filesDir.absolutePath
         val nativeDir = applicationInfo.nativeLibraryDir
-        NativeBridge.nativeInit(systemDir, nativeDir)
+        NativeBridge.nativeInit(nativeDir)
 
         bindViewsAndSurfaces()
 
@@ -137,15 +136,19 @@ class EmulatorActivity : AppCompatActivity() {
     }
 
     private fun cargarRomDesdeRuta(path: String) {
-        val romResult = NativeBridge.nativeLoadRom(path)
-        Toast.makeText(this, romResult, Toast.LENGTH_SHORT).show()
-        audioEngine.start()
-        gameLoop?.start()
+        try {
+            val romResult = NativeBridge.nativeLoadRom(path)
+            Toast.makeText(this, romResult, Toast.LENGTH_SHORT).show()
+            audioEngine.start()
+            gameLoop?.start()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun cargarRomDesdeUri(uri: Uri) {
         try {
-            val tempRom = File(filesDir, "current_game.nds")
+            val tempRom = File(cacheDir, "current_game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRom).use { output ->
                     input.copyTo(output)
