@@ -19,7 +19,6 @@ class EmulatorActivity : AppCompatActivity() {
     private val touchDigitizer = TouchDigitizer()
     private val audioEngine = AudioEngine(32828)
     private var gameLoop: GameLoop? = null
-    private var pendingRomPath: String? = null
 
     companion object {
         const val KEY_A = 1 shl 0
@@ -49,12 +48,16 @@ class EmulatorActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val nativeDir = applicationInfo.nativeLibraryDir
-        NativeBridge.nativeInit(nativeDir)
+        val systemDir = filesDir.absolutePath
+        val libDir = applicationInfo.nativeLibraryDir
+        NativeBridge.nativeInit(systemDir, libDir)
 
         bindViewsAndSurfaces()
 
-        pendingRomPath = intent.getStringExtra("ROM_PATH")
+        val romPath = intent.getStringExtra("ROM_PATH")
+        if (romPath != null && File(romPath).exists()) {
+            cargarRomDesdeRuta(romPath)
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -115,16 +118,10 @@ class EmulatorActivity : AppCompatActivity() {
         super.onResume()
         glScreenTop.onResume()
         glScreenBottom.onResume()
-
-        pendingRomPath?.let { path ->
-            if (File(path).exists()) {
-                cargarRomDesdeRuta(path)
-                pendingRomPath = null
-            }
+        if (NativeBridge.nativeGetCpuStatus() == "Activo") {
+            audioEngine.start()
+            gameLoop?.start()
         }
-
-        audioEngine.start()
-        gameLoop?.start()
     }
 
     override fun onPause() {
@@ -137,10 +134,16 @@ class EmulatorActivity : AppCompatActivity() {
 
     private fun cargarRomDesdeRuta(path: String) {
         try {
+            gameLoop?.stop()
+            audioEngine.stop()
+
             val romResult = NativeBridge.nativeLoadRom(path)
             Toast.makeText(this, romResult, Toast.LENGTH_SHORT).show()
-            audioEngine.start()
-            gameLoop?.start()
+
+            if (romResult.contains("correctamente", ignoreCase = true)) {
+                audioEngine.start()
+                gameLoop?.start()
+            }
         } catch (e: Exception) {
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
@@ -148,7 +151,7 @@ class EmulatorActivity : AppCompatActivity() {
 
     private fun cargarRomDesdeUri(uri: Uri) {
         try {
-            val tempRom = File(cacheDir, "current_game.nds")
+            val tempRom = File(filesDir, "current_game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRom).use { output ->
                     input.copyTo(output)
