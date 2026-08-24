@@ -15,7 +15,7 @@ class GameLoop(
         private set
 
     private var gameThread: Thread? = null
-    private val targetFrameNs = 1_000_000_000L / 60L // 16.666 ms exactos
+    private val targetFrameNs = 1_000_000_000L / 60L
     private val audioPullBuffer = ShortArray(2048)
 
     fun updateSurfaces(top: GLSurfaceView, bottom: GLSurfaceView) {
@@ -37,7 +37,8 @@ class GameLoop(
         try {
             gameThread?.join(500)
             gameThread = null
-        } catch (_: InterruptedException) {}
+        } catch (e: InterruptedException) {
+        }
     }
 
     override fun run() {
@@ -65,12 +66,11 @@ class GameLoop(
                 if (sleepMs > 2) {
                     try {
                         Thread.sleep(sleepMs - 1)
-                    } catch (_: InterruptedException) {
+                    } catch (e: InterruptedException) {
                         break
                     }
                 }
                 while (System.nanoTime() < nextFrameTime) {
-                    // Espera activa precisa para clavar 60.0 FPS
                 }
             } else {
                 if (sleepNs < -targetFrameNs * 4) {
