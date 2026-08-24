@@ -11,7 +11,6 @@
         android:layout_height="match_parent"
         android:visibility="gone">
 
-        <!-- Contenedor vertical de pantallas DS -->
         <LinearLayout
             android:id="@+id/screens_container"
             android:layout_width="match_parent"
@@ -32,7 +31,6 @@
                 android:layout_margin="2dp" />
         </LinearLayout>
 
-        <!-- Gatillos L y R -->
         <Button
             android:id="@+id/btn_l"
             android:layout_width="75dp"
@@ -57,7 +55,6 @@
             android:textColor="#FFFFFF"
             android:backgroundTint="#33FFFFFF" />
 
-        <!-- Cruceta D-Pad -->
         <RelativeLayout
             android:id="@+id/dpad_layout"
             android:layout_width="140dp"
@@ -100,7 +97,6 @@
                 android:backgroundTint="#44FFFFFF" />
         </RelativeLayout>
 
-        <!-- Botones ABXY estilo SNES -->
         <RelativeLayout
             android:id="@+id/action_buttons_layout"
             android:layout_width="140dp"
@@ -155,7 +151,6 @@
                 android:backgroundTint="#44FFFFFF" />
         </RelativeLayout>
 
-        <!-- Botones SELECT y START -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -185,7 +180,7 @@
         </LinearLayout>
     </RelativeLayout>
 
-    <!-- CAPA 2: MENÚ PRINCIPAL SNES (BLANCO Y MORADO) -->
+    <!-- CAPA 2: MENÚ PRINCIPAL SNES -->
     <RelativeLayout
         android:id="@+id/layout_main_menu"
         android:layout_width="match_parent"
@@ -324,4 +319,202 @@
             android:textStyle="bold" />
     </RelativeLayout>
 
-</FrameLayout>
+    <!-- CAPA 3: PANTALLA DE CONFIGURAR OPCIONES (DRASTIC / SNES STYLE) -->
+    <LinearLayout
+        android:id="@+id/layout_options_menu"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F0EFF5"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <!-- Barra Superior de Opciones -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="#4F357E"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <!-- Botón Flecha Atrás -->
+            <TextView
+                android:id="@+id/btn_options_back"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:gravity="center"
+                android:text="←"
+                android:textColor="#FFFFFF"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <!-- Icono DS en lavanda SNES -->
+            <TextView
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="12dp"
+                android:background="#8F81B8"
+                android:gravity="center"
+                android:text="DS"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <!-- Título -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Configurar opciones"
+                android:textColor="#FFFFFF"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Lista de Secciones -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!-- 1. Vídeo -->
+                <TextView
+                    android:id="@+id/opt_video"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="24dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="18dp"
+                    android:text="Vídeo"
+                    android:textColor="#2B2638"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <!-- 2. Audio -->
+                <TextView
+                    android:id="@+id/opt_audio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="24dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="18dp"
+                    android:text="Audio"
+                    android:textColor="#2B2638"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <!-- 3. Mando de juego virtual -->
+                <TextView
+                    android:id="@+id/opt_virtual_pad"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="24dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="18dp"
+                    android:text="Mando de juego virtual"
+                    android:textColor="#2B2638"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <!-- 4. Controlador externo -->
+                <TextView
+                    android:id="@+id/opt_external_pad"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="24dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="18dp"
+                    android:text="Controlador externo"
+                    android:textColor="#2B2638"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <!-- 5. General -->
+                <TextView
+                    android:id="@+id/opt_general"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="24dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="18dp"
+                    android:text="General"
+                    android:textColor="#2B2638"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <!-- 6. Sistema -->
+                <TextView
+                    android:id="@+id/opt_system"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="24dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="18dp"
+                    android:text="Sistema"
+                    android:textColor="#2B2638"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <!-- 7. Avanzado -->
+                <TextView
+                    android:id="@+id/opt_advanced"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="24dp"
+                    android:paddingTop="18dp"
+                    android:paddingEnd="24dp"
+                    android:paddingBottom="18dp"
+                    android:text="Avanzado"
+                    android:textColor="#2B2638"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+            </LinearLayout>
