@@ -245,7 +245,7 @@ class MainActivity : AppCompatActivity() {
         optVirtualPad.setOnClickListener { mostrarAjustesVirtualPad() }
 
         optAudio.setOnClickListener { Toast.makeText(this, "Audio: 32.8 kHz Activo", Toast.LENGTH_SHORT).show() }
-        optExternalPad.setOnClickListener { Toast.makeText(this, "Controlador externo: Mapeo de botones", Toast.LENGTH_SHORT).show() }
+        optExternalPad.setOnClickListener { Toast.makeText(this, "Controlador externo: Mapeo", Toast.LENGTH_SHORT).show() }
         optGeneral.setOnClickListener { Toast.makeText(this, "General: Guardado e idioma", Toast.LENGTH_SHORT).show() }
         optSystem.setOnClickListener { Toast.makeText(this, "Sistema: melonDS Core v0.9.5", Toast.LENGTH_SHORT).show() }
         optAdvanced.setOnClickListener { Toast.makeText(this, "Avanzado: Hilos y sincronización", Toast.LENGTH_SHORT).show() }
@@ -332,7 +332,8 @@ class MainActivity : AppCompatActivity() {
                 @Suppress("DEPRECATION")
                 v.vibrate(25)
             }
-        } catch (_: Throwable) {}
+        } catch (e: Exception) {
+        }
     }
 
     private fun mostrarDialogoSeleccionDrivers() {
@@ -549,7 +550,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     private fun setupDirectionButton(viewId: Int, keyMask: Int) {
         val view = findViewById<View>(viewId) ?: return
-        view.setOnTouchListener { _, event ->
+        view.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.alpha = (currentVPadAlpha * 0.6f).coerceAtLeast(0.2f)
