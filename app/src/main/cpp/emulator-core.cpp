@@ -94,7 +94,7 @@ static bool cb_environment(unsigned cmd, void *data) {
         case 15:
             if (data) {
                 struct retro_variable *var = (struct retro_variable*)data;
-                if (var->key) {
+                if (var && var->key) {
                     if (strcmp(var->key, "melonds_boot_directly") == 0 || strcmp(var->key, "melonds_boot_direct") == 0) {
                         var->value = "enabled";
                         return true;
@@ -251,21 +251,17 @@ static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, un
 extern "C" {
 
 JNIEXPORT jboolean JNICALL
-Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jstring system_path, jstring lib_path) {
-    const char *nativeSysPath = env->GetStringUTFChars(system_path, nullptr);
-    const char *nativeLibPath = env->GetStringUTFChars(lib_path, nullptr);
+Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jstring system_path) {
+    const char *nativePath = env->GetStringUTFChars(system_path, nullptr);
+    snprintf(systemDirectory, sizeof(systemDirectory), "%s", nativePath);
 
-    snprintf(systemDirectory, sizeof(systemDirectory), "%s", nativeSysPath);
-
-    // Si el motor ya está cargado e inicializado, no duplicar retro_init()
     if (isCoreLoaded && coreHandle != nullptr) {
-        env->ReleaseStringUTFChars(system_path, nativeSysPath);
-        env->ReleaseStringUTFChars(lib_path, nativeLibPath);
+        env->ReleaseStringUTFChars(system_path, nativePath);
         return JNI_TRUE;
     }
 
     char fullLibPath[512];
-    snprintf(fullLibPath, sizeof(fullLibPath), "%s/libmelonds.so", nativeLibPath);
+    snprintf(fullLibPath, sizeof(fullLibPath), "%s/libmelonds.so", nativePath);
 
     coreHandle = dlopen("libmelonds.so", RTLD_NOW | RTLD_GLOBAL);
     if (!coreHandle) {
@@ -274,8 +270,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jst
 
     if (!coreHandle) {
         LOGE("Error abriendo libmelonds.so: %s", dlerror());
-        env->ReleaseStringUTFChars(system_path, nativeSysPath);
-        env->ReleaseStringUTFChars(lib_path, nativeLibPath);
+        env->ReleaseStringUTFChars(system_path, nativePath);
         return JNI_FALSE;
     }
 
@@ -301,8 +296,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jst
     if (core_init) core_init();
 
     isCoreLoaded = true;
-    env->ReleaseStringUTFChars(system_path, nativeSysPath);
-    env->ReleaseStringUTFChars(lib_path, nativeLibPath);
+    env->ReleaseStringUTFChars(system_path, nativePath);
     return JNI_TRUE;
 }
 
@@ -331,11 +325,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeLoadRom(JNIEnv *env, jobject thiz, 
     }
 
     pthread_mutex_lock(&coreMutex);
-
-    if (isGameLoaded && core_unload_game) {
-        core_unload_game();
-        isGameLoaded = false;
-    }
+    isGameLoaded = false;
 
     if (persistedRomData) {
         free(persistedRomData);
@@ -347,7 +337,7 @@ Java_com_ejemplo_emulador_NativeBridge_nativeLoadRom(JNIEnv *env, jobject thiz, 
         fclose(f);
         pthread_mutex_unlock(&coreMutex);
         env->ReleaseStringUTFChars(rom_path, path);
-        return env->NewStringUTF("Error: Memoria RAM insuficiente");
+        return env->NewStringUTF("Error: RAM insuficiente");
     }
 
     fread(persistedRomData, 1, size, f);
