@@ -11,7 +11,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
@@ -64,16 +63,15 @@ class MainActivity : AppCompatActivity() {
         NativeBridge.nativeInit(nativeDir)
 
         bindViewsAndSurfaces()
+    }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (isPlaying) {
-                    mostrarMenu()
-                } else {
-                    finish()
-                }
-            }
-        })
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (isPlaying) {
+            mostrarMenu()
+        } else {
+            super.onBackPressed()
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
