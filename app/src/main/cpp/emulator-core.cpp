@@ -251,52 +251,54 @@ static int16_t cb_input_state(unsigned port, unsigned device, unsigned index, un
 extern "C" {
 
 JNIEXPORT jboolean JNICALL
-Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jstring system_path) {
-    const char *nativePath = env->GetStringUTFChars(system_path, nullptr);
-    snprintf(systemDirectory, sizeof(systemDirectory), "%s", nativePath);
+Java_com_ejemplo_emulador_NativeBridge_nativeInit(JNIEnv *env, jobject thiz, jstring system_path, jstring lib_path) {
+    const char *sysPath = env->GetStringUTFChars(system_path, nullptr);
+    const char *libPath = env->GetStringUTFChars(lib_path, nullptr);
 
-    if (isCoreLoaded && coreHandle != nullptr) {
-        env->ReleaseStringUTFChars(system_path, nativePath);
-        return JNI_TRUE;
+    snprintf(systemDirectory, sizeof(systemDirectory), "%s", sysPath);
+
+    if (!isCoreLoaded || coreHandle == nullptr) {
+        char fullLibPath[512];
+        snprintf(fullLibPath, sizeof(fullLibPath), "%s/libmelonds.so", libPath);
+
+        coreHandle = dlopen("libmelonds.so", RTLD_NOW | RTLD_GLOBAL);
+        if (!coreHandle) {
+            coreHandle = dlopen(fullLibPath, RTLD_NOW | RTLD_GLOBAL);
+        }
+
+        if (!coreHandle) {
+            LOGE("Error abriendo libmelonds.so: %s", dlerror());
+            env->ReleaseStringUTFChars(system_path, sysPath);
+            env->ReleaseStringUTFChars(lib_path, libPath);
+            return JNI_FALSE;
+        }
+
+        core_init = (fn_retro_init)dlsym(coreHandle, "retro_init");
+        core_deinit = (fn_retro_deinit)dlsym(coreHandle, "retro_deinit");
+        core_load_game = (fn_retro_load_game)dlsym(coreHandle, "retro_load_game");
+        core_unload_game = (fn_retro_unload_game)dlsym(coreHandle, "retro_unload_game");
+        core_run = (fn_retro_run)dlsym(coreHandle, "retro_run");
+        core_set_environment = (fn_retro_set_environment)dlsym(coreHandle, "retro_set_environment");
+        core_set_video_refresh = (fn_retro_set_video_refresh)dlsym(coreHandle, "retro_set_video_refresh");
+        core_set_audio_sample = (fn_retro_set_audio_sample)dlsym(coreHandle, "retro_set_audio_sample");
+        core_set_audio_sample_batch = (fn_retro_set_audio_sample_batch)dlsym(coreHandle, "retro_set_audio_sample_batch");
+        core_set_input_poll = (fn_retro_set_input_poll)dlsym(coreHandle, "retro_set_input_poll");
+        core_set_input_state = (fn_retro_set_input_state)dlsym(coreHandle, "retro_set_input_state");
+
+        if (core_set_environment) core_set_environment(cb_environment);
+        if (core_set_video_refresh) core_set_video_refresh(cb_video_refresh);
+        if (core_set_audio_sample) core_set_audio_sample(cb_audio_sample);
+        if (core_set_audio_sample_batch) core_set_audio_sample_batch(cb_audio_sample_batch);
+        if (core_set_input_poll) core_set_input_poll(cb_input_poll);
+        if (core_set_input_state) core_set_input_state(cb_input_state);
+
+        if (core_init) core_init();
+
+        isCoreLoaded = true;
     }
 
-    char fullLibPath[512];
-    snprintf(fullLibPath, sizeof(fullLibPath), "%s/libmelonds.so", nativePath);
-
-    coreHandle = dlopen("libmelonds.so", RTLD_NOW | RTLD_GLOBAL);
-    if (!coreHandle) {
-        coreHandle = dlopen(fullLibPath, RTLD_NOW | RTLD_GLOBAL);
-    }
-
-    if (!coreHandle) {
-        LOGE("Error abriendo libmelonds.so: %s", dlerror());
-        env->ReleaseStringUTFChars(system_path, nativePath);
-        return JNI_FALSE;
-    }
-
-    core_init = (fn_retro_init)dlsym(coreHandle, "retro_init");
-    core_deinit = (fn_retro_deinit)dlsym(coreHandle, "retro_deinit");
-    core_load_game = (fn_retro_load_game)dlsym(coreHandle, "retro_load_game");
-    core_unload_game = (fn_retro_unload_game)dlsym(coreHandle, "retro_unload_game");
-    core_run = (fn_retro_run)dlsym(coreHandle, "retro_run");
-    core_set_environment = (fn_retro_set_environment)dlsym(coreHandle, "retro_set_environment");
-    core_set_video_refresh = (fn_retro_set_video_refresh)dlsym(coreHandle, "retro_set_video_refresh");
-    core_set_audio_sample = (fn_retro_set_audio_sample)dlsym(coreHandle, "retro_set_audio_sample");
-    core_set_audio_sample_batch = (fn_retro_set_audio_sample_batch)dlsym(coreHandle, "retro_set_audio_sample_batch");
-    core_set_input_poll = (fn_retro_set_input_poll)dlsym(coreHandle, "retro_set_input_poll");
-    core_set_input_state = (fn_retro_set_input_state)dlsym(coreHandle, "retro_set_input_state");
-
-    if (core_set_environment) core_set_environment(cb_environment);
-    if (core_set_video_refresh) core_set_video_refresh(cb_video_refresh);
-    if (core_set_audio_sample) core_set_audio_sample(cb_audio_sample);
-    if (core_set_audio_sample_batch) core_set_audio_sample_batch(cb_audio_sample_batch);
-    if (core_set_input_poll) core_set_input_poll(cb_input_poll);
-    if (core_set_input_state) core_set_input_state(cb_input_state);
-
-    if (core_init) core_init();
-
-    isCoreLoaded = true;
-    env->ReleaseStringUTFChars(system_path, nativePath);
+    env->ReleaseStringUTFChars(system_path, sysPath);
+    env->ReleaseStringUTFChars(lib_path, libPath);
     return JNI_TRUE;
 }
 
