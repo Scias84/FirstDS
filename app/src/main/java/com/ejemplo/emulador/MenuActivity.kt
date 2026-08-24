@@ -1,105 +1,197 @@
 package com.ejemplo.emulador
 
-import android.content.Intent
-import android.content.SharedPreferences
-import android.graphics.Color
+import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.net.Uri
+import android.opengl.GLSurfaceView
 import android.os.Bundle
-import android.widget.TextView
+import android.view.MotionEvent
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
 import java.io.FileOutputStream
 
-class MenuActivity : AppCompatActivity() {
+class EmulatorActivity : AppCompatActivity() {
 
-    private lateinit var prefs: SharedPreferences
-    private lateinit var btnContinue: TextView
+    private var keyState: Int = 0x0FFF
+    private val touchDigitizer = TouchDigitizer()
+    private val audioEngine = AudioEngine(32828)
+    private var gameLoop: GameLoop? = null
+    private var pendingRomPath: String? = null
 
-    private val romPicker = registerForActivityResult(
+    companion object {
+        const val KEY_A = 1 shl 0
+        const val KEY_B = 1 shl 1
+        const val KEY_SELECT = 1 shl 2
+        const val KEY_START = 1 shl 3
+        const val KEY_RIGHT = 1 shl 4
+        const val KEY_LEFT = 1 shl 5
+        const val KEY_UP = 1 shl 6
+        const val KEY_DOWN = 1 shl 7
+        const val KEY_R = 1 shl 8
+        const val KEY_L = 1 shl 9
+        const val KEY_X = 1 shl 10
+        const val KEY_Y = 1 shl 11
+    }
+
+    private lateinit var glScreenTop: GLSurfaceView
+    private lateinit var glScreenBottom: GLSurfaceView
+
+    private val romPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        uri?.let { launchEmulatorWithRom(it) }
+        uri?.let { cargarRomDesdeUri(it) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_menu)
+        setContentView(R.layout.activity_main)
 
-        prefs = getSharedPreferences("FirstDS_Prefs", MODE_PRIVATE)
+        val systemDir = filesDir.absolutePath
+        val nativeDir = applicationInfo.nativeLibraryDir
+        NativeBridge.nativeInit(systemDir, nativeDir)
 
-        btnContinue = findViewById(R.id.btn_menu_continue)
-        val btnNewGame = findViewById<TextView>(R.id.btn_menu_new_game)
-        val btnOptions = findViewById<TextView>(R.id.btn_menu_options)
-        val btnExit = findViewById<TextView>(R.id.btn_menu_exit)
-        val btnHelp = findViewById<TextView>(R.id.btn_top_help)
+        bindViewsAndSurfaces()
 
-        updateContinueButtonState()
+        pendingRomPath = intent.getStringExtra("ROM_PATH")
+    }
 
-        btnContinue.setOnClickListener {
-            val lastRomPath = prefs.getString("last_rom_path", null)
-            if (lastRomPath != null && File(lastRomPath).exists()) {
-                val intent = Intent(this, EmulatorActivity::class.java).apply {
-                    putExtra("ROM_PATH", lastRomPath)
-                }
-                startActivity(intent)
-            } else {
-                Toast.makeText(this, "No hay juego previo para continuar", Toast.LENGTH_SHORT).show()
-            }
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        setContentView(R.layout.activity_main)
+        bindViewsAndSurfaces()
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun bindViewsAndSurfaces() {
+        glScreenTop = findViewById(R.id.gl_screen_top)
+        glScreenBottom = findViewById(R.id.gl_screen_bottom)
+
+        glScreenTop.setEGLContextClientVersion(2)
+        glScreenTop.setRenderer(EmulatorRenderer(isTopScreen = true))
+        glScreenTop.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+
+        glScreenBottom.setEGLContextClientVersion(2)
+        glScreenBottom.setRenderer(EmulatorRenderer(isTopScreen = false))
+        glScreenBottom.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+
+        if (gameLoop == null) {
+            gameLoop = GameLoop(
+                glTop = glScreenTop,
+                glBottom = glScreenBottom,
+                audioEngine = audioEngine,
+                getKeyMask = { keyState },
+                getTouchState = { touchDigitizer }
+            )
+        } else {
+            gameLoop?.updateSurfaces(glScreenTop, glScreenBottom)
         }
 
-        btnNewGame.setOnClickListener {
-            romPicker.launch(arrayOf("*/*"))
+        glScreenTop.setOnClickListener {
+            romPickerLauncher.launch(arrayOf("*/*"))
         }
 
-        btnOptions.setOnClickListener {
-            Toast.makeText(this, "Opciones próximamente", Toast.LENGTH_SHORT).show()
+        glScreenBottom.setOnTouchListener { v, event ->
+            touchDigitizer.handleTouchEvent(v, event)
         }
 
-        btnHelp.setOnClickListener {
-            Toast.makeText(this, "FirstDS - melonDS Core", Toast.LENGTH_LONG).show()
-        }
+        setupButton(R.id.btn_a, KEY_A)
+        setupButton(R.id.btn_b, KEY_B)
+        setupButton(R.id.btn_x, KEY_X)
+        setupButton(R.id.btn_y, KEY_Y)
+        setupButton(R.id.btn_l, KEY_L)
+        setupButton(R.id.btn_r, KEY_R)
+        setupButton(R.id.btn_start, KEY_START)
+        setupButton(R.id.btn_select, KEY_SELECT)
 
-        btnExit.setOnClickListener {
-            finishAffinity()
-        }
+        setupDirectionButton(R.id.btn_up, KEY_UP)
+        setupDirectionButton(R.id.btn_down, KEY_DOWN)
+        setupDirectionButton(R.id.btn_left, KEY_LEFT)
+        setupDirectionButton(R.id.btn_right, KEY_RIGHT)
     }
 
     override fun onResume() {
         super.onResume()
-        updateContinueButtonState()
-    }
+        glScreenTop.onResume()
+        glScreenBottom.onResume()
 
-    private fun updateContinueButtonState() {
-        val lastRom = prefs.getString("last_rom_path", null)
-        if (lastRom != null && File(lastRom).exists()) {
-            btnContinue.setTextColor(Color.parseColor("#4F357E")) // Morado activo
-            btnContinue.isClickable = true
-        } else {
-            btnContinue.setTextColor(Color.parseColor("#C2BFCC")) // Muted SNES
-            btnContinue.isClickable = false
+        pendingRomPath?.let { path ->
+            if (File(path).exists()) {
+                cargarRomDesdeRuta(path)
+                pendingRomPath = null
+            }
         }
+
+        audioEngine.start()
+        gameLoop?.start()
     }
 
-    private fun launchEmulatorWithRom(uri: Uri) {
+    override fun onPause() {
+        super.onPause()
+        gameLoop?.stop()
+        audioEngine.stop()
+        glScreenTop.onPause()
+        glScreenBottom.onPause()
+    }
+
+    private fun cargarRomDesdeRuta(path: String) {
+        val romResult = NativeBridge.nativeLoadRom(path)
+        Toast.makeText(this, romResult, Toast.LENGTH_SHORT).show()
+        audioEngine.start()
+        gameLoop?.start()
+    }
+
+    private fun cargarRomDesdeUri(uri: Uri) {
         try {
-            Toast.makeText(this, "Cargando juego...", Toast.LENGTH_SHORT).show()
-            val tempRom = File(cacheDir, "current_game.nds")
+            val tempRom = File(filesDir, "current_game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRom).use { output ->
                     input.copyTo(output)
                 }
             }
-
-            prefs.edit().putString("last_rom_path", tempRom.absolutePath).apply()
-
-            val intent = Intent(this, EmulatorActivity::class.java).apply {
-                putExtra("ROM_PATH", tempRom.absolutePath)
-            }
-            startActivity(intent)
+            cargarRomDesdeRuta(tempRom.absolutePath)
         } catch (e: Exception) {
-            Toast.makeText(this, "Error al abrir ROM: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupButton(viewId: Int, keyMask: Int) {
+        val view = findViewById<View>(viewId) ?: return
+        view.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.alpha = 0.5f
+                    keyState = keyState and keyMask.inv()
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.alpha = 1.0f
+                    keyState = keyState or keyMask
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupDirectionButton(viewId: Int, keyMask: Int) {
+        val view = findViewById<View>(viewId) ?: return
+        view.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    keyState = keyState and keyMask.inv()
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    keyState = keyState or keyMask
+                    true
+                }
+                else -> false
+            }
         }
     }
 }
