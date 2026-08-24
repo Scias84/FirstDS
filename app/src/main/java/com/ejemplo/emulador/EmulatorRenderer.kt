@@ -46,7 +46,6 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
     private var program: Int = 0
     private var textureId: Int = 0
 
-    // Inicialización directa en memoria (evita el cierre forzado)
     private val vertexBuffer: FloatBuffer = ByteBuffer.allocateDirect(squareCoords.size * 4)
         .order(ByteOrder.nativeOrder())
         .asFloatBuffer()
@@ -106,7 +105,7 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
             } else {
                 NativeBridge.nativeGetBottomBuffer()
             }
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
             null
         }
 
