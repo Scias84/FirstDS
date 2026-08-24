@@ -6,8 +6,12 @@ object NativeBridge {
     init {
         try {
             System.loadLibrary("melonds")
-        } catch (_: Throwable) {}
-        System.loadLibrary("emulatorkernel")
+        } catch (e: Throwable) {
+        }
+        try {
+            System.loadLibrary("emulatorkernel")
+        } catch (e: Throwable) {
+        }
     }
 
     external fun nativeInit(systemPath: String, libPath: String): Boolean
