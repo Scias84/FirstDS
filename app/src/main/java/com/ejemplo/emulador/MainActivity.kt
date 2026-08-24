@@ -9,8 +9,10 @@ import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import java.io.File
@@ -26,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private var isPlaying = false
     private var isOptionsMenuOpen = false
+    private var isVideoSettingsOpen = false
 
     companion object {
         const val KEY_A = 1 shl 0
@@ -47,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var layoutEmulator: View
     private lateinit var layoutMainMenu: View
     private lateinit var layoutOptionsMenu: View
+    private lateinit var layoutVideoSettings: View
     private lateinit var btnContinue: TextView
 
     private val romPickerLauncher = registerForActivityResult(
@@ -72,6 +76,7 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         when {
             isPlaying -> mostrarMenu()
+            isVideoSettingsOpen -> ocultarAjustesVideo()
             isOptionsMenuOpen -> ocultarOpciones()
             else -> super.onBackPressed()
         }
@@ -87,11 +92,19 @@ class MainActivity : AppCompatActivity() {
                 layoutEmulator.visibility = View.VISIBLE
                 layoutMainMenu.visibility = View.GONE
                 layoutOptionsMenu.visibility = View.GONE
+                layoutVideoSettings.visibility = View.GONE
+            }
+            isVideoSettingsOpen -> {
+                layoutEmulator.visibility = View.GONE
+                layoutMainMenu.visibility = View.GONE
+                layoutOptionsMenu.visibility = View.GONE
+                layoutVideoSettings.visibility = View.VISIBLE
             }
             isOptionsMenuOpen -> {
                 layoutEmulator.visibility = View.GONE
                 layoutMainMenu.visibility = View.GONE
                 layoutOptionsMenu.visibility = View.VISIBLE
+                layoutVideoSettings.visibility = View.GONE
             }
             else -> mostrarMenu()
         }
@@ -102,6 +115,7 @@ class MainActivity : AppCompatActivity() {
         layoutEmulator = findViewById(R.id.layout_emulator)
         layoutMainMenu = findViewById(R.id.layout_main_menu)
         layoutOptionsMenu = findViewById(R.id.layout_options_menu)
+        layoutVideoSettings = findViewById(R.id.layout_video_settings)
 
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
@@ -146,6 +160,7 @@ class MainActivity : AppCompatActivity() {
 
         setupMenuControls()
         setupOptionsControls()
+        setupVideoSettingsControls()
     }
 
     private fun setupMenuControls() {
@@ -196,7 +211,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         optVideo.setOnClickListener {
-            Toast.makeText(this, "Vídeo: Relación de aspecto y escalado", Toast.LENGTH_SHORT).show()
+            mostrarAjustesVideo()
         }
 
         optAudio.setOnClickListener {
@@ -224,16 +239,73 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupVideoSettingsControls() {
+        val btnVideoBack = findViewById<TextView>(R.id.btn_video_back)
+        val optBackend = findViewById<View>(R.id.opt_video_backend)
+        val txtBackend = findViewById<TextView>(R.id.txt_backend_selected)
+        val optDriver = findViewById<View>(R.id.opt_video_driver)
+        val txtDriver = findViewById<TextView>(R.id.txt_driver_selected)
+
+        btnVideoBack.setOnClickListener {
+            ocultarAjustesVideo()
+        }
+
+        optBackend.setOnClickListener {
+            val backends = arrayOf("OpenGL ES 3.2 (Estándar recomendado)", "Vulkan (Renderizado de alta fidelidad)")
+            AlertDialog.Builder(this)
+                .setTitle("Seleccionar Motor Gráfico")
+                .setItems(backends) { _, which ->
+                    val selected = if (which == 0) "OpenGL ES 3.2" else "Vulkan"
+                    txtBackend.text = selected
+                    prefs.edit().putString("gfx_backend", selected).apply()
+                    Toast.makeText(this, "Motor: $selected", Toast.LENGTH_SHORT).show()
+                }
+                .show()
+        }
+
+        optDriver.setOnClickListener {
+            val drivers = arrayOf(
+                "Controlador del sistema (Adreno oficial)",
+                "Driver Turnip Mesa (Optimizado Snapdragon)",
+                "Driver Qualcomm v615+ Propietario"
+            )
+            AlertDialog.Builder(this)
+                .setTitle("Seleccionar Controlador GPU")
+                .setItems(drivers) { _, which ->
+                    txtDriver.text = drivers[which]
+                    prefs.edit().putString("gpu_driver", drivers[which]).apply()
+                    Toast.makeText(this, "Driver asignado: ${drivers[which]}", Toast.LENGTH_SHORT).show()
+                }
+                .show()
+        }
+    }
+
     private fun mostrarOpciones() {
         isOptionsMenuOpen = true
+        isVideoSettingsOpen = false
         layoutMainMenu.visibility = View.GONE
         layoutOptionsMenu.visibility = View.VISIBLE
+        layoutVideoSettings.visibility = View.GONE
     }
 
     private fun ocultarOpciones() {
         isOptionsMenuOpen = false
+        isVideoSettingsOpen = false
         layoutOptionsMenu.visibility = View.GONE
+        layoutVideoSettings.visibility = View.GONE
         layoutMainMenu.visibility = View.VISIBLE
+    }
+
+    private fun mostrarAjustesVideo() {
+        isVideoSettingsOpen = true
+        layoutOptionsMenu.visibility = View.GONE
+        layoutVideoSettings.visibility = View.VISIBLE
+    }
+
+    private fun ocultarAjustesVideo() {
+        isVideoSettingsOpen = false
+        layoutVideoSettings.visibility = View.GONE
+        layoutOptionsMenu.visibility = View.VISIBLE
     }
 
     private fun actualizarBotonContinuar() {
@@ -250,8 +322,10 @@ class MainActivity : AppCompatActivity() {
     private fun iniciarEmulacion() {
         isPlaying = true
         isOptionsMenuOpen = false
+        isVideoSettingsOpen = false
         layoutMainMenu.visibility = View.GONE
         layoutOptionsMenu.visibility = View.GONE
+        layoutVideoSettings.visibility = View.GONE
         layoutEmulator.visibility = View.VISIBLE
         audioEngine.start()
         gameLoop?.start()
@@ -260,10 +334,12 @@ class MainActivity : AppCompatActivity() {
     private fun mostrarMenu() {
         isPlaying = false
         isOptionsMenuOpen = false
+        isVideoSettingsOpen = false
         gameLoop?.stop()
         audioEngine.stop()
         layoutEmulator.visibility = View.GONE
         layoutOptionsMenu.visibility = View.GONE
+        layoutVideoSettings.visibility = View.GONE
         layoutMainMenu.visibility = View.VISIBLE
         actualizarBotonContinuar()
     }
