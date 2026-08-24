@@ -85,17 +85,17 @@ class MenuActivity : AppCompatActivity() {
     private fun launchEmulatorWithRom(uri: Uri) {
         try {
             Toast.makeText(this, "Cargando juego...", Toast.LENGTH_SHORT).show()
-            val persistentRom = File(filesDir, "current_game.nds")
+            val tempRom = File(cacheDir, "current_game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(persistentRom).use { output ->
+                FileOutputStream(tempRom).use { output ->
                     input.copyTo(output)
                 }
             }
 
-            prefs.edit().putString("last_rom_path", persistentRom.absolutePath).apply()
+            prefs.edit().putString("last_rom_path", tempRom.absolutePath).apply()
 
             val intent = Intent(this, EmulatorActivity::class.java).apply {
-                putExtra("ROM_PATH", persistentRom.absolutePath)
+                putExtra("ROM_PATH", tempRom.absolutePath)
             }
             startActivity(intent)
         } catch (e: Exception) {
