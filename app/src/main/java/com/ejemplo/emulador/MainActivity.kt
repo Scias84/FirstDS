@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
 
     private var isPlaying = false
+    private var isOptionsMenuOpen = false
 
     companion object {
         const val KEY_A = 1 shl 0
@@ -45,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var glScreenBottom: GLSurfaceView
     private lateinit var layoutEmulator: View
     private lateinit var layoutMainMenu: View
+    private lateinit var layoutOptionsMenu: View
     private lateinit var btnContinue: TextView
 
     private val romPickerLauncher = registerForActivityResult(
@@ -68,10 +70,10 @@ class MainActivity : AppCompatActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (isPlaying) {
-            mostrarMenu()
-        } else {
-            super.onBackPressed()
+        when {
+            isPlaying -> mostrarMenu()
+            isOptionsMenuOpen -> ocultarOpciones()
+            else -> super.onBackPressed()
         }
     }
 
@@ -79,11 +81,19 @@ class MainActivity : AppCompatActivity() {
         super.onConfigurationChanged(newConfig)
         setContentView(R.layout.activity_main)
         bindViewsAndSurfaces()
-        if (isPlaying) {
-            layoutEmulator.visibility = View.VISIBLE
-            layoutMainMenu.visibility = View.GONE
-        } else {
-            mostrarMenu()
+
+        when {
+            isPlaying -> {
+                layoutEmulator.visibility = View.VISIBLE
+                layoutMainMenu.visibility = View.GONE
+                layoutOptionsMenu.visibility = View.GONE
+            }
+            isOptionsMenuOpen -> {
+                layoutEmulator.visibility = View.GONE
+                layoutMainMenu.visibility = View.GONE
+                layoutOptionsMenu.visibility = View.VISIBLE
+            }
+            else -> mostrarMenu()
         }
     }
 
@@ -91,6 +101,7 @@ class MainActivity : AppCompatActivity() {
     private fun bindViewsAndSurfaces() {
         layoutEmulator = findViewById(R.id.layout_emulator)
         layoutMainMenu = findViewById(R.id.layout_main_menu)
+        layoutOptionsMenu = findViewById(R.id.layout_options_menu)
 
         glScreenTop = findViewById(R.id.gl_screen_top)
         glScreenBottom = findViewById(R.id.gl_screen_bottom)
@@ -134,6 +145,7 @@ class MainActivity : AppCompatActivity() {
         setupDirectionButton(R.id.btn_right, KEY_RIGHT)
 
         setupMenuControls()
+        setupOptionsControls()
     }
 
     private fun setupMenuControls() {
@@ -157,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnOptions.setOnClickListener {
-            Toast.makeText(this, "Opciones próximamente", Toast.LENGTH_SHORT).show()
+            mostrarOpciones()
         }
 
         btnHelp?.setOnClickListener {
@@ -167,6 +179,61 @@ class MainActivity : AppCompatActivity() {
         btnExit.setOnClickListener {
             finish()
         }
+    }
+
+    private fun setupOptionsControls() {
+        val btnBack = findViewById<TextView>(R.id.btn_options_back)
+        val optVideo = findViewById<TextView>(R.id.opt_video)
+        val optAudio = findViewById<TextView>(R.id.opt_audio)
+        val optVirtualPad = findViewById<TextView>(R.id.opt_virtual_pad)
+        val optExternalPad = findViewById<TextView>(R.id.opt_external_pad)
+        val optGeneral = findViewById<TextView>(R.id.opt_general)
+        val optSystem = findViewById<TextView>(R.id.opt_system)
+        val optAdvanced = findViewById<TextView>(R.id.opt_advanced)
+
+        btnBack.setOnClickListener {
+            ocultarOpciones()
+        }
+
+        optVideo.setOnClickListener {
+            Toast.makeText(this, "Vídeo: Relación de aspecto y escalado", Toast.LENGTH_SHORT).show()
+        }
+
+        optAudio.setOnClickListener {
+            Toast.makeText(this, "Audio: 32.8 kHz Activo", Toast.LENGTH_SHORT).show()
+        }
+
+        optVirtualPad.setOnClickListener {
+            Toast.makeText(this, "Mando virtual: Opacidad y disposición", Toast.LENGTH_SHORT).show()
+        }
+
+        optExternalPad.setOnClickListener {
+            Toast.makeText(this, "Controlador externo: Mapeo de botones", Toast.LENGTH_SHORT).show()
+        }
+
+        optGeneral.setOnClickListener {
+            Toast.makeText(this, "General: Guardado automático e idioma", Toast.LENGTH_SHORT).show()
+        }
+
+        optSystem.setOnClickListener {
+            Toast.makeText(this, "Sistema: FreeBIOS / melonDS v0.9.5", Toast.LENGTH_SHORT).show()
+        }
+
+        optAdvanced.setOnClickListener {
+            Toast.makeText(this, "Avanzado: Hilos y sincronización", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun mostrarOpciones() {
+        isOptionsMenuOpen = true
+        layoutMainMenu.visibility = View.GONE
+        layoutOptionsMenu.visibility = View.VISIBLE
+    }
+
+    private fun ocultarOpciones() {
+        isOptionsMenuOpen = false
+        layoutOptionsMenu.visibility = View.GONE
+        layoutMainMenu.visibility = View.VISIBLE
     }
 
     private fun actualizarBotonContinuar() {
@@ -182,7 +249,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun iniciarEmulacion() {
         isPlaying = true
+        isOptionsMenuOpen = false
         layoutMainMenu.visibility = View.GONE
+        layoutOptionsMenu.visibility = View.GONE
         layoutEmulator.visibility = View.VISIBLE
         audioEngine.start()
         gameLoop?.start()
@@ -190,9 +259,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun mostrarMenu() {
         isPlaying = false
+        isOptionsMenuOpen = false
         gameLoop?.stop()
         audioEngine.stop()
         layoutEmulator.visibility = View.GONE
+        layoutOptionsMenu.visibility = View.GONE
         layoutMainMenu.visibility = View.VISIBLE
         actualizarBotonContinuar()
     }
