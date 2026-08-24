@@ -250,8 +250,7 @@ class MainActivity : AppCompatActivity() {
         optSystem.setOnClickListener { Toast.makeText(this, "Sistema: melonDS Core v0.9.5", Toast.LENGTH_SHORT).show() }
         optAdvanced.setOnClickListener { Toast.makeText(this, "Avanzado: Hilos y sincronización", Toast.LENGTH_SHORT).show() }
     }
-
-    private fun setupVideoSettingsControls() {
+        private fun setupVideoSettingsControls() {
         val btnVideoBack = findViewById<TextView>(R.id.btn_video_back)
         val optBackend = findViewById<View>(R.id.opt_video_backend)
         val txtBackend = findViewById<TextView>(R.id.txt_backend_selected)
@@ -550,7 +549,7 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     private fun setupDirectionButton(viewId: Int, keyMask: Int) {
         val view = findViewById<View>(viewId) ?: return
-        view.setOnTouchListener { v, event ->
+        view.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     v.alpha = (currentVPadAlpha * 0.6f).coerceAtLeast(0.2f)
@@ -568,4 +567,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
- 
