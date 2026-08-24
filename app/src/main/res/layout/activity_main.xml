@@ -319,7 +319,7 @@
             android:textStyle="bold" />
     </RelativeLayout>
 
-    <!-- CAPA 3: CONFIGURAR OPCIONES (PRINCIPAL) -->
+    <!-- CAPA 3: CONFIGURAR OPCIONES -->
     <LinearLayout
         android:id="@+id/layout_options_menu"
         android:layout_width="match_parent"
@@ -509,7 +509,7 @@
         </ScrollView>
     </LinearLayout>
 
-    <!-- CAPA 4: AJUSTES DE VÍDEO (NUEVO PANEL) -->
+    <!-- CAPA 4: AJUSTES DE VÍDEO CON SELECTOR DE CONTROLADOR GPU -->
     <LinearLayout
         android:id="@+id/layout_video_settings"
         android:layout_width="match_parent"
@@ -521,4 +521,4 @@
         android:focusable="true">
 
         <LinearLayout
-            android:layout_width="match_pa
+            android:layout_width="ma
