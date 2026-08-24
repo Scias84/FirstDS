@@ -19,6 +19,7 @@ class EmulatorActivity : AppCompatActivity() {
     private val touchDigitizer = TouchDigitizer()
     private val audioEngine = AudioEngine(32828)
     private var gameLoop: GameLoop? = null
+    private var pendingRomPath: String? = null
 
     companion object {
         const val KEY_A = 1 shl 0
@@ -48,15 +49,13 @@ class EmulatorActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val systemDir = filesDir.absolutePath
         val nativeDir = applicationInfo.nativeLibraryDir
-        NativeBridge.nativeInit(nativeDir)
+        NativeBridge.nativeInit(systemDir, nativeDir)
 
         bindViewsAndSurfaces()
 
-        val romPath = intent.getStringExtra("ROM_PATH")
-        if (romPath != null && File(romPath).exists()) {
-            cargarRomDesdeRuta(romPath)
-        }
+        pendingRomPath = intent.getStringExtra("ROM_PATH")
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -117,6 +116,14 @@ class EmulatorActivity : AppCompatActivity() {
         super.onResume()
         glScreenTop.onResume()
         glScreenBottom.onResume()
+
+        pendingRomPath?.let { path ->
+            if (File(path).exists()) {
+                cargarRomDesdeRuta(path)
+                pendingRomPath = null
+            }
+        }
+
         audioEngine.start()
         gameLoop?.start()
     }
@@ -138,7 +145,7 @@ class EmulatorActivity : AppCompatActivity() {
 
     private fun cargarRomDesdeUri(uri: Uri) {
         try {
-            val tempRom = File(cacheDir, "current_game.nds")
+            val tempRom = File(filesDir, "current_game.nds")
             contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(tempRom).use { output ->
                     input.copyTo(output)
