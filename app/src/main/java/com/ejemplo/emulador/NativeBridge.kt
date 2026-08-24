@@ -10,7 +10,7 @@ object NativeBridge {
         System.loadLibrary("emulatorkernel")
     }
 
-    external fun nativeInit(systemPath: String): Boolean
+    external fun nativeInit(systemPath: String, libPath: String): Boolean
     external fun nativeLoadRom(romPath: String): String
     external fun nativeRunFrame(keyMask: Int, touchX: Int, touchY: Int, isTouching: Boolean)
     external fun nativeGetTopBuffer(): ByteBuffer?
