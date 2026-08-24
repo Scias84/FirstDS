@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <!-- CAPA 1: JUEGO EN HORIZONTAL LADO A LADO -->
+    <!-- CAPA 1: JUEGO EN HORIZONTAL -->
     <RelativeLayout
         android:id="@+id/layout_emulator"
         android:layout_width="match_parent"
@@ -191,6 +191,24 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_margin="16dp">
+
+            <TextView
+                android:id="@+id/btn_top_help"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="?"
+                android:textColor="#8F81B8"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_centerInParent="true"
             android:gravity="center"
             android:orientation="vertical">
@@ -282,5 +300,174 @@
             </LinearLayout>
         </LinearLayout>
     </RelativeLayout>
+
+    <!-- CAPA 3: OPCIONES HORIZONTAL -->
+    <LinearLayout
+        android:id="@+id/layout_options_menu"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F0EFF5"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:background="#4F357E"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <TextView
+                android:id="@+id/btn_options_back"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="←"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="10dp"
+                android:background="#8F81B8"
+                android:gravity="center"
+                android:text="DS"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Configurar opciones"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/opt_video"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="Vídeo"
+                    android:textColor="#2B2638"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <TextView
+                    android:id="@+id/opt_audio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="Audio"
+                    android:textColor="#2B2638"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <TextView
+                    android:id="@+id/opt_virtual_pad"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="Mando de juego virtual"
+                    android:textColor="#2B2638"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <TextView
+                    android:id="@+id/opt_external_pad"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="Controlador externo"
+                    android:textColor="#2B2638"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <TextView
+                    android:id="@+id/opt_general"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="General"
+                    android:textColor="#2B2638"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <TextView
+                    android:id="@+id/opt_system"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="Sistema"
+                    android:textColor="#2B2638"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+                <TextView
+                    android:id="@+id/opt_advanced"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="14dp"
+                    android:text="Avanzado"
+                    android:textColor="#2B2638"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#D1CFDB" />
+
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
 
 </FrameLayout>
