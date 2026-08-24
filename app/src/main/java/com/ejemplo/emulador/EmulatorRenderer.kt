@@ -29,11 +29,11 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
         }
     """.trimIndent()
 
-    private val quadCoords = floatArrayOf(
-        -1.0f,  1.0f, 0.0f,
-        -1.0f, -1.0f, 0.0f,
-         1.0f,  1.0f, 0.0f,
-         1.0f, -1.0f, 0.0f
+    private val squareCoords = floatArrayOf(
+        -1.0f,  1.0f,
+        -1.0f, -1.0f,
+         1.0f,  1.0f,
+         1.0f, -1.0f
     )
 
     private val texCoords = floatArrayOf(
@@ -43,30 +43,36 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
         1.0f, 1.0f
     )
 
-    private val vertexBuffer: FloatBuffer = ByteBuffer.allocateDirect(quadCoords.size * 4)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer().apply {
-            put(quadCoords)
-            position(0)
-        }
-
-    private val texBuffer: FloatBuffer = ByteBuffer.allocateDirect(texCoords.size * 4)
-        .order(ByteOrder.nativeOrder()).asFloatBuffer().apply {
-            put(texCoords)
-            position(0)
-        }
-
     private var program: Int = 0
     private var textureId: Int = 0
+    private lateinit var vertexBuffer: FloatBuffer
+    private lateinit var texBuffer: FloatBuffer
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        GLES20.glClearColor(0f, 0f, 0f, 1f)
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
 
-        val vShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
-        val fShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
+        vertexBuffer = ByteBuffer.allocateDirect(squareCoords.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .apply {
+                put(squareCoords)
+                position(0)
+            }
+
+        texBuffer = ByteBuffer.allocateDirect(texCoords.size * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .apply {
+                put(texCoords)
+                position(0)
+            }
+
+        val vertexShader = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
+        val fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
 
         program = GLES20.glCreateProgram().also {
-            GLES20.glAttachShader(it, vShader)
-            GLES20.glAttachShader(it, fShader)
+            GLES20.glAttachShader(it, vertexShader)
+            GLES20.glAttachShader(it, fragmentShader)
             GLES20.glLinkProgram(it)
         }
 
@@ -79,11 +85,6 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
         GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
-
-        GLES20.glTexImage2D(
-            GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 256, 192, 0,
-            GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null
-        )
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -91,10 +92,12 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        // Bloqueo de seguridad: Evitar comandos GL antes de compilar shaders
+        if (program == 0) return
+
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 
-        // Obtener píxeles directamente de la memoria nativa
-        val buffer = if (isTopScreen) {
+        val buffer: ByteBuffer? = if (isTopScreen) {
             NativeBridge.nativeGetTopBuffer()
         } else {
             NativeBridge.nativeGetBottomBuffer()
@@ -103,32 +106,43 @@ class EmulatorRenderer(private val isTopScreen: Boolean) : GLSurfaceView.Rendere
         if (buffer != null) {
             buffer.position(0)
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
-            GLES20.glTexSubImage2D(
-                GLES20.GL_TEXTURE_2D, 0, 0, 0, 256, 192,
-                GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buffer
+            GLES20.glTexImage2D(
+                GLES20.GL_TEXTURE_2D,
+                0,
+                GLES20.GL_RGBA,
+                256,
+                192,
+                0,
+                GLES20.GL_RGBA,
+                GLES20.GL_UNSIGNED_BYTE,
+                buffer
             )
         }
 
         GLES20.glUseProgram(program)
 
         val posHandle = GLES20.glGetAttribLocation(program, "aPosition")
-        GLES20.glEnableVertexAttribArray(posHandle)
-        GLES20.glVertexAttribPointer(posHandle, 3, GLES20.GL_FLOAT, false, 12, vertexBuffer)
+        if (posHandle >= 0) {
+            GLES20.glEnableVertexAttribArray(posHandle)
+            GLES20.glVertexAttribPointer(posHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer)
+        }
 
         val texHandle = GLES20.glGetAttribLocation(program, "aTexCoord")
-        GLES20.glEnableVertexAttribArray(texHandle)
-        GLES20.glVertexAttribPointer(texHandle, 2, GLES20.GL_FLOAT, false, 8, texBuffer)
+        if (texHandle >= 0) {
+            GLES20.glEnableVertexAttribArray(texHandle)
+            GLES20.glVertexAttribPointer(texHandle, 2, GLES20.GL_FLOAT, false, 0, texBuffer)
+        }
 
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
 
-        GLES20.glDisableVertexAttribArray(posHandle)
-        GLES20.glDisableVertexAttribArray(texHandle)
+        if (posHandle >= 0) GLES20.glDisableVertexAttribArray(posHandle)
+        if (texHandle >= 0) GLES20.glDisableVertexAttribArray(texHandle)
     }
 
-    private fun loadShader(type: Int, code: String): Int {
+    private fun loadShader(type: Int, shaderCode: String): Int {
         return GLES20.glCreateShader(type).also { shader ->
-            GLES20.glShaderSource(shader, code)
+            GLES20.glShaderSource(shader, shaderCode)
             GLES20.glCompileShader(shader)
         }
     }
